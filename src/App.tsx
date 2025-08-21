@@ -3,7 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { ProLayout } from "./layouts/ProLayout";
+import Dashboard from "./pages/pro/Dashboard";
+import Events from "./pages/pro/Events";
+import FloorPlan from "./pages/pro/FloorPlan";
+import Client from "./pages/Client";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -11,15 +15,30 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <div className="dark">
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Interface CLIENT */}
+            <Route path="/" element={<Client />} />
+            
+            {/* Interface PRO - Isolée */}
+            <Route path="/pro" element={<ProLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="events" element={<Events />} />
+              <Route path="floor-plan" element={<FloorPlan />} />
+              <Route path="products" element={<Dashboard />} />
+              <Route path="users" element={<Dashboard />} />
+              <Route path="stats" element={<Dashboard />} />
+              <Route path="settings" element={<Dashboard />} />
+            </Route>
+            
+            {/* 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </div>
     </TooltipProvider>
   </QueryClientProvider>
 );
