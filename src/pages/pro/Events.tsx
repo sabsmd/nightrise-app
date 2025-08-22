@@ -41,6 +41,7 @@ export default function Events() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<any>(null);
   const [newEvent, setNewEvent] = useState({
     titre: "",
     description: "",
@@ -96,14 +97,28 @@ export default function Events() {
     }
   };
 
-  const createEvent = async () => {
+  const resetForm = () => {
+    setNewEvent({
+      titre: "",
+      description: "",
+      date: "",
+      lieu: "",
+      image: "",
+      type_evenement: "",
+      artiste_dj: "",
+      image_file: null
+    });
+    setEditingEvent(null);
+  };
+
+  const createOrUpdateEvent = async () => {
     try {
       if (!newEvent.titre || !newEvent.date || !newEvent.lieu) {
         toast.error('Veuillez remplir tous les champs obligatoires');
         return;
       }
 
-      // Préparer les données à insérer
+      // Préparer les données à insérer/modifier
       const eventData = {
         titre: newEvent.titre,
         description: newEvent.description,
@@ -114,32 +129,46 @@ export default function Events() {
         artiste_dj: newEvent.artiste_dj || null
       };
 
-      const { error } = await supabase
-        .from('events')
-        .insert([eventData]);
+      let error;
+      if (editingEvent) {
+        ({ error } = await supabase
+          .from('events')
+          .update(eventData)
+          .eq('id', editingEvent.id));
+      } else {
+        ({ error } = await supabase
+          .from('events')
+          .insert([eventData]));
+      }
 
       if (error) throw error;
 
-      toast.success('Événement créé avec succès !');
+      toast.success(editingEvent ? 'Événement modifié avec succès !' : 'Événement créé avec succès !');
       setIsDialogOpen(false);
-      setNewEvent({
-        titre: "",
-        description: "",
-        date: "",
-        lieu: "",
-        image: "",
-        type_evenement: "",
-        artiste_dj: "",
-        image_file: null
-      });
+      resetForm();
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       loadEvents();
     } catch (error) {
-      console.error('Erreur lors de la création de l\'événement:', error);
-      toast.error('Erreur lors de la création de l\'événement');
+      console.error('Erreur lors de la sauvegarde de l\'événement:', error);
+      toast.error('Erreur lors de la sauvegarde de l\'événement');
     }
+  };
+
+  const startEdit = (event: any) => {
+    setEditingEvent(event);
+    setNewEvent({
+      titre: event.titre,
+      description: event.description || "",
+      date: event.date,
+      lieu: event.lieu,
+      image: event.image || "",
+      type_evenement: event.type_evenement || "",
+      artiste_dj: event.artiste_dj || "",
+      image_file: null
+    });
+    setIsDialogOpen(true);
   };
 
   const deleteEvent = async (eventId: string) => {
@@ -182,7 +211,10 @@ export default function Events() {
           <p className="text-muted-foreground">Créez et gérez vos soirées et événements spéciaux</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) resetForm();
+        }}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90 shadow-glow">
               <Plus className="w-4 h-4 mr-2" />
@@ -191,9 +223,11 @@ export default function Events() {
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Créer un nouvel événement</DialogTitle>
+              <DialogTitle>
+                {editingEvent ? 'Modifier l\'événement' : 'Créer un nouvel événement'}
+              </DialogTitle>
               <DialogDescription>
-                Ajoutez les informations essentielles de votre événement.
+                {editingEvent ? 'Modifiez les informations de votre événement.' : 'Ajoutez les informations essentielles de votre événement.'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -316,8 +350,8 @@ export default function Events() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
-                <Button className="bg-gradient-primary" onClick={createEvent}>
-                  Créer l'événement
+                <Button className="bg-gradient-primary" onClick={createOrUpdateEvent}>
+                  {editingEvent ? 'Enregistrer les modifications' : 'Créer l\'événement'}
                 </Button>
               </div>
             </div>
@@ -397,7 +431,12 @@ export default function Events() {
                 </div>
                 
                 <div className="flex items-center gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1 hover:bg-secondary">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 hover:bg-secondary"
+                    onClick={() => startEdit(event)}
+                  >
                     <Edit className="w-4 h-4 mr-1" />
                     Modifier
                   </Button>

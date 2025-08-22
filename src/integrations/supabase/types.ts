@@ -196,6 +196,7 @@ export type Database = {
       }
       products: {
         Row: {
+          actif: boolean
           categorie: Database["public"]["Enums"]["product_category"]
           created_at: string
           id: string
@@ -204,6 +205,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actif?: boolean
           categorie: Database["public"]["Enums"]["product_category"]
           created_at?: string
           id?: string
@@ -212,6 +214,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actif?: boolean
           categorie?: Database["public"]["Enums"]["product_category"]
           created_at?: string
           id?: string

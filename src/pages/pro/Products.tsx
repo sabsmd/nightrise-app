@@ -36,8 +36,11 @@ import {
   Search,
   Filter,
   Package,
-  ArrowUpDown
+  ArrowUpDown,
+  Power,
+  PowerOff
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -49,6 +52,7 @@ interface Product {
   nom: string;
   prix: number;
   categorie: ProductCategory;
+  actif: boolean;
 }
 
 export default function Products() {
@@ -63,7 +67,8 @@ export default function Products() {
   const [newProduct, setNewProduct] = useState({
     nom: "",
     prix: "",
-    categorie: "boisson" as ProductCategory
+    categorie: "boisson" as ProductCategory,
+    actif: true
   });
 
   useEffect(() => {
@@ -94,7 +99,8 @@ export default function Products() {
     setNewProduct({
       nom: "",
       prix: "",
-      categorie: "boisson"
+      categorie: "boisson",
+      actif: true
     });
     setEditingProduct(null);
   };
@@ -109,7 +115,8 @@ export default function Products() {
       const productData = {
         nom: newProduct.nom,
         prix: Number(newProduct.prix),
-        categorie: newProduct.categorie
+        categorie: newProduct.categorie,
+        actif: newProduct.actif
       };
 
       let error;
@@ -158,9 +165,27 @@ export default function Products() {
     setNewProduct({
       nom: product.nom,
       prix: product.prix.toString(),
-      categorie: product.categorie
+      categorie: product.categorie,
+      actif: product.actif
     });
     setIsDialogOpen(true);
+  };
+
+  const toggleProductStatus = async (productId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ actif: !currentStatus })
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      toast.success(currentStatus ? 'Produit désactivé' : 'Produit activé');
+      loadProducts();
+    } catch (error) {
+      console.error('Erreur lors de la modification du statut:', error);
+      toast.error('Erreur lors de la modification du statut');
+    }
   };
 
   const getCategoryColor = (category: ProductCategory) => {
@@ -296,6 +321,17 @@ export default function Products() {
                   onChange={(e) => setNewProduct({...newProduct, prix: e.target.value})}
                 />
               </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium">Produit actif</label>
+                  <p className="text-xs text-muted-foreground">Le produit apparaîtra dans la carte</p>
+                </div>
+                <Switch 
+                  checked={newProduct.actif} 
+                  onCheckedChange={(checked) => setNewProduct({...newProduct, actif: checked})}
+                />
+              </div>
               
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -389,73 +425,89 @@ export default function Products() {
                 </Badge>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {categoryProducts.map((product) => (
-                  <Card key={product.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/70 transition-all duration-300">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-bold text-foreground line-clamp-2">
-                            {product.nom}
-                          </CardTitle>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {categoryProducts.map((product) => (
+                    <Card key={product.id} className={`bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/70 transition-all duration-300 ${!product.actif ? 'opacity-60' : ''}`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg font-bold text-foreground line-clamp-2 flex items-center gap-2">
+                              {product.nom}
+                              {!product.actif && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Désactivé
+                                </Badge>
+                              )}
+                            </CardTitle>
+                          </div>
+                          <Badge className={getCategoryColor(product.categorie)}>
+                            {getCategoryIcon(product.categorie)}
+                          </Badge>
                         </div>
-                        <Badge className={getCategoryColor(product.categorie)}>
-                          {getCategoryIcon(product.categorie)}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="pt-0">
-                      <div className="space-y-3">
-                        <div className="text-2xl font-bold text-primary">
-                          €{product.prix.toFixed(2)}
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 hover:bg-secondary"
-                            onClick={() => startEdit(product)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Modifier
-                          </Button>
+                      </CardHeader>
+                      
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          <div className="text-2xl font-bold text-primary">
+                            €{product.prix.toFixed(2)}
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Statut</span>
+                            <div className="flex items-center gap-2">
+                              <Switch 
+                                checked={product.actif}
+                                onCheckedChange={() => toggleProductStatus(product.id, product.actif)}
+                              />
+                              <span className="text-sm">{product.actif ? 'Actif' : 'Inactif'}</span>
+                            </div>
+                          </div>
                           
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="hover:bg-destructive hover:text-destructive-foreground"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Supprimer ce produit ?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Êtes-vous sûr de vouloir supprimer "{product.nom}" ? 
-                                  Cette action est irréversible.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => deleteProduct(product.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1 hover:bg-secondary"
+                              onClick={() => startEdit(product)}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Modifier
+                            </Button>
+                            
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="hover:bg-destructive hover:text-destructive-foreground"
                                 >
-                                  Supprimer
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Supprimer ce produit ?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Êtes-vous sûr de vouloir supprimer "{product.nom}" ? 
+                                    Cette action est irréversible.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteProduct(product.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))}
               </div>
             </div>
           ))}
