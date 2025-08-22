@@ -167,7 +167,7 @@ export default function Events() {
         return "bg-secondary text-secondary-foreground";
     }
   };
-  return <div className="p-6 space-y-6">
+  return <div className="max-h-screen overflow-y-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
