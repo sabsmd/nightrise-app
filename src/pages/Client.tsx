@@ -152,6 +152,23 @@ export default function Client() {
                 </Link>
               )}
             </div>
+            
+            {/* Bouton Pro séparé */}
+            <div className="mt-8 pt-6 border-t border-white/20">
+              <Link to="/auth">
+                <Button 
+                  size="lg" 
+                  variant="default" 
+                  className="bg-gradient-primary hover:opacity-90 transition-smooth shadow-glow"
+                >
+                  <User className="w-5 h-5 mr-2" />
+                  Vous êtes pro ? Cliquez ici
+                </Button>
+              </Link>
+              <p className="text-sm text-white/80 mt-2">
+                Accédez à l'interface de gestion professionnelle
+              </p>
+            </div>
           </div>
         </div>
         
