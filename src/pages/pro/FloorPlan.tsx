@@ -121,6 +121,24 @@ export default function FloorPlan() {
     }
   };
 
+  const handleElementResize = async (id: string, width: number, height: number) => {
+    try {
+      const { error } = await supabase
+        .from('floor_elements')
+        .update({ width, height })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setElements(prev => prev.map(el => 
+        el.id === id ? { ...el, width, height } : el
+      ));
+    } catch (error) {
+      console.error('Erreur lors du redimensionnement:', error);
+      toast.error('Erreur lors du redimensionnement de l\'élément');
+    }
+  };
+
   const handleElementDelete = async (id: string) => {
     try {
       const { error } = await supabase
@@ -277,6 +295,7 @@ export default function FloorPlan() {
                 selectedEvent={selectedEvent}
                 editMode={editMode}
                 onElementMove={handleElementMove}
+                onElementResize={handleElementResize}
                 onElementDelete={handleElementDelete}
                 onElementClick={handleElementClick}
                 onCanvasDrop={handleCanvasDrop}
