@@ -101,6 +101,60 @@ export type Database = {
         }
         Relationships: []
       }
+      min_spend_codes: {
+        Row: {
+          code: string
+          created_at: string
+          event_id: string
+          floor_element_id: string | null
+          id: string
+          min_spend: number
+          solde_restant: number
+          statut: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          event_id: string
+          floor_element_id?: string | null
+          id?: string
+          min_spend?: number
+          solde_restant?: number
+          statut?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          event_id?: string
+          floor_element_id?: string | null
+          id?: string
+          min_spend?: number
+          solde_restant?: number
+          statut?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "min_spend_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "min_spend_codes_floor_element_id_fkey"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
