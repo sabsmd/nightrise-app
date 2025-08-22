@@ -111,6 +111,7 @@ export type Database = {
           min_spend: number
           nom_client: string
           prenom_client: string
+          reservation_id: string | null
           solde_restant: number
           statut: string
           telephone_client: string
@@ -126,6 +127,7 @@ export type Database = {
           min_spend?: number
           nom_client: string
           prenom_client: string
+          reservation_id?: string | null
           solde_restant?: number
           statut?: string
           telephone_client: string
@@ -141,6 +143,7 @@ export type Database = {
           min_spend?: number
           nom_client?: string
           prenom_client?: string
+          reservation_id?: string | null
           solde_restant?: number
           statut?: string
           telephone_client?: string
@@ -160,6 +163,13 @@ export type Database = {
             columns: ["floor_element_id"]
             isOneToOne: false
             referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "min_spend_codes_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
             referencedColumns: ["id"]
           },
         ]
@@ -379,6 +389,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reservations: {
+        Row: {
+          created_at: string
+          event_id: string
+          floor_element_id: string
+          id: string
+          min_spend_code_id: string
+          statut: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          floor_element_id: string
+          id?: string
+          min_spend_code_id: string
+          statut?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          floor_element_id?: string
+          id?: string
+          min_spend_code_id?: string
+          statut?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       secret_codes: {
         Row: {

@@ -1,10 +1,11 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useLocation } from "react-router-dom";
 import { Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import RealtimeNotifications from "@/components/RealtimeNotifications";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,11 @@ import {
 
 export function ProLayout() {
   const { profile, signOut } = useAuth();
+  const location = useLocation();
+  
+  const eventId = location.pathname.includes('/events/') 
+    ? location.pathname.split('/events/')[1]?.split('/')[0]
+    : undefined;
 
   return (
     <ProtectedRoute requireRole="admin">
@@ -35,10 +41,7 @@ export function ProLayout() {
             </div>
             
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
-              </Button>
+              <RealtimeNotifications eventId={eventId} />
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

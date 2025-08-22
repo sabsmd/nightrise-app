@@ -46,9 +46,8 @@ export default function EventDetails() {
   const [floorElements, setFloorElements] = useState<FloorElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedElement, setSelectedElement] = useState<FloorElement | null>(null);
-  const [showReservationDialog, setShowReservationDialog] = useState(false);
-  const [validationCode, setValidationCode] = useState("");
-  const [reservationLoading, setReservationLoading] = useState(false);
+  const [validatedCode, setValidatedCode] = useState<any>(null);
+  const [reservationId, setReservationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (eventId) {
@@ -126,37 +125,12 @@ export default function EventDetails() {
     }
   };
 
-  const handleReservation = () => {
-    if (!user) {
-      toast.error('Vous devez être connecté pour réserver');
-      navigate('/auth');
-      return;
-    }
-    setShowReservationDialog(true);
+  const handleCodeValidated = (code: any) => {
+    setValidatedCode(code);
   };
 
-  const submitReservation = async () => {
-    if (!validationCode.trim()) {
-      toast.error('Veuillez entrer le code de validation');
-      return;
-    }
-
-    setReservationLoading(true);
-
-    try {
-      // Here you would typically verify the validation code with the backend
-      // For now, we'll just simulate a successful reservation
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('Réservation confirmée !');
-      setShowReservationDialog(false);
-      setSelectedElement(null);
-      setValidationCode('');
-    } catch (error) {
-      toast.error('Code de validation invalide');
-    } finally {
-      setReservationLoading(false);
-    }
+  const handleReservationCreated = (newReservationId: string) => {
+    setReservationId(newReservationId);
   };
 
   if (loading) {
@@ -274,6 +248,8 @@ export default function EventDetails() {
                   <ClientFloorPlan 
                     elements={floorElements}
                     onElementClick={handleElementClick}
+                    validatedCode={validatedCode}
+                    eventId={eventId}
                   />
                 </CardContent>
               </Card>
@@ -282,7 +258,11 @@ export default function EventDetails() {
             {/* Sidebar */}
             <div className="space-y-6">
               {/* Min Spend Code Tracker */}
-              <ClientMinSpendTracker eventId={eventId!} />
+              <ClientMinSpendTracker 
+                eventId={eventId!} 
+                onCodeValidated={handleCodeValidated}
+                onReservationCreated={handleReservationCreated}
+              />
               
               {/* Event Details */}
               <Card>
@@ -352,7 +332,7 @@ export default function EventDetails() {
               <span>{selectedElement?.nom}</span>
             </DialogTitle>
             <DialogDescription>
-              Détails de l'emplacement et réservation
+              Détails de l'emplacement
             </DialogDescription>
           </DialogHeader>
           
@@ -385,55 +365,10 @@ export default function EventDetails() {
               </span>
             </div>
             
-            <div className="pt-4 border-t">
-              <Button onClick={handleReservation} className="w-full">
-                Réserver cet emplacement
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reservation Dialog */}
-      <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la réservation</DialogTitle>
-            <DialogDescription>
-              Entrez le code de validation fourni par l'organisateur pour confirmer votre réservation.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="validationCode">Code de validation</Label>
-              <Input
-                id="validationCode"
-                type="text"
-                placeholder="Entrez le code de validation"
-                value={validationCode}
-                onChange={(e) => setValidationCode(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowReservationDialog(false)}
-                className="flex-1"
-              >
-                Annuler
-              </Button>
-              <Button 
-                onClick={submitReservation}
-                disabled={reservationLoading}
-                className="flex-1"
-              >
-                {reservationLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : null}
-                Confirmer
-              </Button>
+            <div className="text-center p-4 bg-muted/20 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Pour réserver cet élément, validez d'abord votre code minimum spend puis cliquez directement sur l'élément dans le plan.
+              </p>
             </div>
           </div>
         </DialogContent>

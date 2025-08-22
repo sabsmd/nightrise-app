@@ -1,4 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 export interface FloorElement {
   id: string;
@@ -12,24 +16,164 @@ export interface FloorElement {
   couleur?: string;
 }
 
+interface Reservation {
+  id: string;
+  floor_element_id: string;
+  user_id: string;
+  statut: string;
+  min_spend_code_id: string;
+}
+
 interface ClientFloorPlanProps {
   elements: FloorElement[];
   onElementClick: (element: FloorElement) => void;
+  validatedCode?: any;
+  eventId?: string;
 }
 
-export default function ClientFloorPlan({
-  elements,
-  onElementClick
+export default function ClientFloorPlan({ 
+  elements, 
+  onElementClick, 
+  validatedCode,
+  eventId
 }: ClientFloorPlanProps) {
+  const { user } = useAuth();
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (eventId) {
+      loadReservations();
+      
+      // Subscribe to real-time updates
+      const channel = supabase
+        .channel('reservations-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'reservations',
+            filter: `event_id=eq.${eventId}`
+          },
+          () => {
+            loadReservations();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [eventId]);
+
+  const loadReservations = async () => {
+    if (!eventId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('statut', 'active');
+
+      if (error) throw error;
+      setReservations(data || []);
+    } catch (error) {
+      console.error('Error loading reservations:', error);
+    }
+  };
+
+  const handleElementClick = async (element: FloorElement) => {
+    // Only allow reservation of table, bed, sofa
+    if (!['table', 'bed', 'sofa'].includes(element.type)) {
+      onElementClick(element);
+      return;
+    }
+
+    if (!user) {
+      toast.error('Vous devez être connecté pour réserver');
+      return;
+    }
+
+    if (!validatedCode) {
+      toast.error('Veuillez d\'abord valider votre code minimum spend');
+      return;
+    }
+
+    // Check if element is already reserved
+    const existingReservation = reservations.find(r => r.floor_element_id === element.id);
+    if (existingReservation) {
+      if (existingReservation.user_id === user.id) {
+        toast.info('Vous avez déjà réservé cet élément');
+      } else {
+        toast.error('Cet élément est déjà réservé');
+      }
+      return;
+    }
+
+    // Check if user already has a reservation for this event
+    const userReservation = reservations.find(r => r.user_id === user.id);
+    if (userReservation) {
+      toast.error('Vous avez déjà une réservation pour cet événement');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create reservation
+      const { data: reservation, error: reservationError } = await supabase
+        .from('reservations')
+        .insert({
+          event_id: eventId,
+          floor_element_id: element.id,
+          min_spend_code_id: validatedCode.id,
+          user_id: user.id,
+          statut: 'active'
+        })
+        .select()
+        .single();
+
+      if (reservationError) throw reservationError;
+
+      // Update min_spend_code status and link to reservation
+      const { error: codeError } = await supabase
+        .from('min_spend_codes')
+        .update({
+          statut: 'reserved',
+          reservation_id: reservation.id
+        })
+        .eq('id', validatedCode.id);
+
+      if (codeError) throw codeError;
+
+      toast.success(`${element.nom} réservé avec succès !`);
+      loadReservations();
+    } catch (error: any) {
+      console.error('Error creating reservation:', error);
+      if (error.code === '23505') {
+        toast.error('Cet élément vient d\'être réservé par quelqu\'un d\'autre');
+      } else {
+        toast.error('Erreur lors de la réservation');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getElementStyle = (element: FloorElement) => {
+    const reservation = reservations.find(r => r.floor_element_id === element.id);
+    const isReservedByUser = reservation?.user_id === user?.id;
+    const isReserved = !!reservation;
+
     const baseStyles = {
       position: 'absolute' as const,
       left: `${element.position_x}px`,
       top: `${element.position_y}px`,
       width: `${element.width}px`,
       height: `${element.height}px`,
-      cursor: ['table', 'bed', 'sofa'].includes(element.type) ? 'pointer' : 'default',
+      cursor: loading ? 'wait' : 'pointer',
       borderRadius: '8px',
       display: 'flex',
       alignItems: 'center',
@@ -41,14 +185,52 @@ export default function ClientFloorPlan({
       userSelect: 'none' as const,
       transition: 'transform 0.2s, box-shadow 0.2s',
       minWidth: '40px',
-      minHeight: '40px'
+      minHeight: '40px',
+      flexDirection: 'column' as const,
+      gap: '4px'
     };
 
-    // If custom color is set, use it instead of default type styles
+    // Reservation-based styling
+    if (isReserved) {
+      if (isReservedByUser) {
+        return {
+          ...baseStyles,
+          backgroundColor: 'hsl(142 76% 36%/0.2)',
+          borderColor: 'hsl(142 76% 36%)',
+          color: 'hsl(142 76% 36%)',
+          transform: 'scale(1.05)',
+          boxShadow: '0 4px 8px hsl(142 76% 36%/0.3)'
+        };
+      } else {
+        return {
+          ...baseStyles,
+          backgroundColor: 'hsl(0 84% 60%/0.2)',
+          borderColor: 'hsl(0 84% 60%)',
+          color: 'hsl(0 84% 60%)',
+          cursor: 'not-allowed',
+          opacity: 0.7
+        };
+      }
+    }
+
+    // Available elements styling for reservable types
+    if (['table', 'bed', 'sofa'].includes(element.type)) {
+      const availableStyle = {
+        ...baseStyles,
+        backgroundColor: element.couleur ? element.couleur + '20' : 'hsl(var(--primary)/0.1)',
+        borderColor: element.couleur || 'hsl(var(--primary))',
+        color: element.couleur || 'hsl(var(--primary))',
+        borderStyle: 'dashed' as const
+      };
+
+      return availableStyle;
+    }
+
+    // Default styling for non-reservable elements
     if (element.couleur) {
       return {
         ...baseStyles,
-        backgroundColor: element.couleur + '20', // Add transparency
+        backgroundColor: element.couleur + '20',
         borderColor: element.couleur,
         color: element.couleur,
         borderStyle: element.type === 'entree' ? 'dashed' : 'solid'
@@ -56,11 +238,6 @@ export default function ClientFloorPlan({
     }
 
     const typeStyles = {
-      table: {
-        backgroundColor: 'hsl(var(--primary)/0.1)',
-        borderColor: 'hsl(var(--primary))',
-        color: 'hsl(var(--primary))'
-      },
       entree: {
         backgroundColor: 'hsl(142 76% 36%/0.1)',
         borderColor: 'hsl(142 76% 36%)',
@@ -76,16 +253,6 @@ export default function ClientFloorPlan({
         backgroundColor: 'hsl(200 100% 85%)',
         borderColor: 'hsl(200 100% 50%)',
         color: 'hsl(200 100% 30%)'
-      },
-      bed: {
-        backgroundColor: 'hsl(var(--background))',
-        borderColor: 'hsl(var(--border))',
-        color: 'hsl(var(--foreground))'
-      },
-      sofa: {
-        backgroundColor: 'hsl(0 0% 60%/0.2)',
-        borderColor: 'hsl(0 0% 40%)',
-        color: 'hsl(0 0% 20%)'
       },
       piste: {
         backgroundColor: 'hsl(270 100% 70%/0.2)',
@@ -122,25 +289,30 @@ export default function ClientFloorPlan({
     return icons[type as keyof typeof icons] || '📦';
   };
 
-  const isReservable = (type: string) => {
-    return ['table', 'bed', 'sofa'].includes(type);
-  };
+  const getReservationBadge = (element: FloorElement) => {
+    const reservation = reservations.find(r => r.floor_element_id === element.id);
+    if (!reservation) return null;
 
-  if (elements.length === 0) {
-    return (
-      <div className="relative bg-secondary/20 rounded-lg border-2 border-dashed border-border min-h-[400px] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">🏗️</div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Aucun plan disponible</h3>
-          <p className="text-muted-foreground text-sm">Le plan de salle n'a pas encore été configuré pour cet événement</p>
-        </div>
-      </div>
-    );
-  }
+    const isReservedByUser = reservation.user_id === user?.id;
+
+    if (isReservedByUser) {
+      return (
+        <Badge variant="default" className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-1 py-0.5">
+          Réservé par vous
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="destructive" className="absolute -top-2 -right-2 text-xs px-1 py-0.5">
+          Réservé
+        </Badge>
+      );
+    }
+  };
 
   return (
     <div
-      className="relative bg-secondary/20 rounded-lg border-2 border-dashed border-border min-h-[400px] md:min-h-[600px] overflow-hidden"
+      className="relative bg-secondary/20 rounded-lg border-2 border-dashed border-border min-h-[600px] overflow-hidden"
       style={{
         backgroundImage: `
           linear-gradient(to right, hsl(var(--border)/0.3) 1px, transparent 1px),
@@ -153,44 +325,35 @@ export default function ClientFloorPlan({
         <div
           key={element.id}
           style={getElementStyle(element)}
-          onClick={() => onElementClick(element)}
-          className={`
-            group relative
-            ${isReservable(element.type) ? 'hover:scale-105 hover:shadow-lg hover:shadow-primary/20' : ''}
-            ${element.type === 'table' ? 'hover:shadow-primary/30' : ''}
-          `}
+          onClick={() => handleElementClick(element)}
+          className="group relative hover:scale-105 hover:shadow-md transition-all"
         >
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-lg">{getElementIcon(element.type)}</span>
-            <span className="text-xs leading-tight">{element.nom}</span>
-            {element.config?.prix && isReservable(element.type) && (
-              <span className="text-xs bg-primary/20 px-1 rounded">
-                {element.config.prix}€
-              </span>
-            )}
-          </div>
-
-          {/* Hover indicator for reservable elements */}
-          {isReservable(element.type) && (
-            <div className="absolute inset-0 border-2 border-primary rounded-lg opacity-0 group-hover:opacity-50 transition-opacity pointer-events-none" />
-          )}
+          <span className="text-lg">{getElementIcon(element.type)}</span>
+          <span className="text-xs leading-tight">{element.nom}</span>
+          
+          {['table', 'bed', 'sofa'].includes(element.type) && getReservationBadge(element)}
         </div>
       ))}
 
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm rounded-lg p-3 border">
-        <div className="text-xs font-medium mb-2">Légende:</div>
-        <div className="space-y-1 text-xs">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-primary/20 border border-primary rounded"></div>
-            <span>Table / Bed / Sofa (cliquable)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-muted border border-border rounded"></div>
-            <span>Autres éléments (info seulement)</span>
+      {elements.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-4xl mb-4">🏗️</div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Aucun élément</h3>
+            <p className="text-muted-foreground">Le plan de salle n'a pas encore été configuré</p>
           </div>
         </div>
-      </div>
+      )}
+
+      {validatedCode && (
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="bg-card/90 backdrop-blur-sm border rounded-lg p-3">
+            <p className="text-sm text-muted-foreground text-center">
+              ✨ Cliquez sur une table, un bed ou un sofa pour le réserver
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

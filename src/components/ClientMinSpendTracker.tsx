@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, Check, AlertCircle } from "lucide-react";
+import { CreditCard, Check, AlertCircle, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import ProductCatalog from './ProductCatalog';
 
 interface MinSpendCode {
   id: string;
@@ -16,19 +18,24 @@ interface MinSpendCode {
   prenom_client: string;
   min_spend: number;
   solde_restant: number;
-  statut: 'actif' | 'utilise' | 'expire';
+  statut: 'actif' | 'utilise' | 'expire' | 'reserved';
   event_id: string;
+  reservation_id?: string;
 }
 
 interface ClientMinSpendTrackerProps {
   eventId: string;
   onCodeValidated?: (code: MinSpendCode) => void;
+  onReservationCreated?: (reservationId: string) => void;
 }
 
-export default function ClientMinSpendTracker({ eventId, onCodeValidated }: ClientMinSpendTrackerProps) {
+export default function ClientMinSpendTracker({ eventId, onCodeValidated, onReservationCreated }: ClientMinSpendTrackerProps) {
+  const { user } = useAuth();
   const [codeInput, setCodeInput] = useState("");
   const [validatedCode, setValidatedCode] = useState<MinSpendCode | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userReservation, setUserReservation] = useState<any>(null);
+  const [showCatalog, setShowCatalog] = useState(false);
 
   const validateCode = async () => {
     if (!codeInput.trim()) {
@@ -40,10 +47,10 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated }: Clie
     try {
       const { data, error } = await supabase
         .from('min_spend_codes')
-        .select('id, code, nom_client, prenom_client, min_spend, solde_restant, statut, event_id')
+        .select('id, code, nom_client, prenom_client, min_spend, solde_restant, statut, event_id, reservation_id')
         .eq('code', codeInput.toUpperCase())
         .eq('event_id', eventId)
-        .eq('statut', 'actif')
+        .in('statut', ['actif', 'reserved'])
         .maybeSingle();
 
       if (error) {
@@ -58,6 +65,22 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated }: Clie
       }
       setValidatedCode(data as MinSpendCode);
       onCodeValidated?.(data as MinSpendCode);
+      
+      // Check if user has existing reservation for this code
+      if (user && data.reservation_id) {
+        const { data: reservationData } = await supabase
+          .from('reservations')
+          .select('*')
+          .eq('id', data.reservation_id)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (reservationData) {
+          setUserReservation(reservationData);
+          onReservationCreated?.(reservationData.id);
+        }
+      }
+      
       toast.success('Code validé avec succès !');
     } catch (error) {
       console.error('Error validating code:', error);
@@ -142,13 +165,34 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated }: Clie
             </div>
           )}
 
-          <Button 
-            variant="outline" 
-            onClick={resetCode}
-            className="w-full"
-          >
-            Changer de code
-          </Button>
+          <div className="flex gap-2">
+            {userReservation && (
+              <Button 
+                onClick={() => setShowCatalog(true)}
+                className="flex-1 bg-gradient-primary"
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Catalogue
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              onClick={resetCode}
+              className={userReservation ? "flex-1" : "w-full"}
+            >
+              Changer de code
+            </Button>
+          </div>
+          
+          {showCatalog && userReservation && (
+            <ProductCatalog
+              open={showCatalog}
+              onOpenChange={setShowCatalog}
+              validatedCode={validatedCode}
+              eventId={eventId}
+              reservationId={userReservation.id}
+            />
+          )}
         </CardContent>
       </Card>
     );
