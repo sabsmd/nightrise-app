@@ -44,7 +44,7 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated }: Clie
         .eq('code', codeInput.toUpperCase())
         .eq('event_id', eventId)
         .eq('statut', 'actif')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error validating code:', error);
@@ -56,7 +56,6 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated }: Clie
         toast.error('Code invalide ou expiré');
         return;
       }
-
       setValidatedCode(data as MinSpendCode);
       onCodeValidated?.(data as MinSpendCode);
       toast.success('Code validé avec succès !');

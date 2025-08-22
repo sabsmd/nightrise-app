@@ -109,8 +109,11 @@ export type Database = {
           floor_element_id: string | null
           id: string
           min_spend: number
+          nom_client: string
+          prenom_client: string
           solde_restant: number
           statut: string
+          telephone_client: string
           updated_at: string
           user_id: string | null
         }
@@ -121,8 +124,11 @@ export type Database = {
           floor_element_id?: string | null
           id?: string
           min_spend?: number
+          nom_client: string
+          prenom_client: string
           solde_restant?: number
           statut?: string
+          telephone_client: string
           updated_at?: string
           user_id?: string | null
         }
@@ -133,8 +139,11 @@ export type Database = {
           floor_element_id?: string | null
           id?: string
           min_spend?: number
+          nom_client?: string
+          prenom_client?: string
           solde_restant?: number
           statut?: string
+          telephone_client?: string
           updated_at?: string
           user_id?: string | null
         }

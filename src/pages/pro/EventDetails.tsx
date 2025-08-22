@@ -11,10 +11,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Calendar, MapPin, Users, Plus, Trash2, Copy, Key, QrCode } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, Plus, Trash2, Copy, Key, QrCode, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import MinSpendCodeForm from "@/components/MinSpendCodeForm";
+import MinSpendCodeTable from "@/components/MinSpendCodeTable";
 
 interface Event {
   id: string;
@@ -52,6 +54,19 @@ interface ReservationCode {
   floor_element?: FloorElement;
 }
 
+interface MinSpendCode {
+  id: string;
+  code: string;
+  nom_client: string;
+  prenom_client: string;
+  telephone_client: string;
+  min_spend: number;
+  solde_restant: number;
+  statut: 'actif' | 'utilise' | 'expire';
+  created_at: string;
+  floor_element?: FloorElement;
+}
+
 export default function ProEventDetails() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
@@ -60,6 +75,7 @@ export default function ProEventDetails() {
   const [event, setEvent] = useState<Event | null>(null);
   const [floorElements, setFloorElements] = useState<FloorElement[]>([]);
   const [reservationCodes, setReservationCodes] = useState<ReservationCode[]>([]);
+  const [minSpendCodes, setMinSpendCodes] = useState<MinSpendCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
@@ -76,6 +92,7 @@ export default function ProEventDetails() {
       fetchEventDetails();
       fetchFloorElements();
       fetchReservationCodes();
+      fetchMinSpendCodes();
     }
   }, [eventId]);
 
@@ -131,6 +148,30 @@ export default function ProEventDetails() {
     } catch (error) {
       console.error('Error fetching reservation codes:', error);
       toast.error('Erreur lors du chargement des codes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMinSpendCodes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('min_spend_codes')
+        .select(`
+          *,
+          floor_element:floor_elements(*)
+        `)
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setMinSpendCodes((data || []).map(item => ({
+        ...item,
+        statut: item.statut as 'actif' | 'utilise' | 'expire'
+      })));
+    } catch (error) {
+      console.error('Error fetching min spend codes:', error);
+      toast.error('Erreur lors du chargement des codes de minimum spend');
     } finally {
       setLoading(false);
     }
@@ -307,6 +348,10 @@ export default function ProEventDetails() {
           <TabsTrigger value="codes" className="flex items-center space-x-2">
             <Key className="w-4 h-4" />
             <span>Codes de réservation</span>
+          </TabsTrigger>
+          <TabsTrigger value="minspend" className="flex items-center space-x-2">
+            <CreditCard className="w-4 h-4" />
+            <span>Codes minimum spend</span>
           </TabsTrigger>
           <TabsTrigger value="details">Détails de l'événement</TabsTrigger>
         </TabsList>
@@ -506,6 +551,11 @@ export default function ProEventDetails() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="minspend" className="space-y-6">
+          <MinSpendCodeForm eventId={eventId!} onCodeCreated={fetchMinSpendCodes} />
+          <MinSpendCodeTable codes={minSpendCodes} onCodeDeleted={fetchMinSpendCodes} />
         </TabsContent>
 
         <TabsContent value="details">

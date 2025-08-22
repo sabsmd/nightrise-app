@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Calendar, MapPin, Mail, Phone, ExternalLink, Users, Euro, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Mail, Phone, ExternalLink, Users, Euro, Loader2, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ClientFloorPlan from '@/components/ClientFloorPlan';
+import ClientMinSpendTracker from "@/components/ClientMinSpendTracker";
 
 interface Event {
   id: string;
@@ -280,6 +281,9 @@ export default function EventDetails() {
 
             {/* Sidebar */}
             <div className="space-y-6">
+              {/* Min Spend Code Tracker */}
+              <ClientMinSpendTracker eventId={eventId!} />
+              
               {/* Event Details */}
               <Card>
                 <CardHeader>
