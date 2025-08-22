@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -251,6 +252,9 @@ export default function Products() {
               <DialogTitle>
                 {editingProduct ? 'Modifier le produit' : 'Ajouter un nouveau produit'}
               </DialogTitle>
+              <DialogDescription>
+                Renseignez le nom, la catégorie et le prix du produit.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>

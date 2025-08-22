@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
@@ -191,6 +192,9 @@ export default function Events() {
           <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle>Créer un nouvel événement</DialogTitle>
+              <DialogDescription>
+                Ajoutez les informations essentielles de votre événement.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>

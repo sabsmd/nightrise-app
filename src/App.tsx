@@ -8,6 +8,7 @@ import { ProLayout } from "./layouts/ProLayout";
 import Dashboard from "./pages/pro/Dashboard";
 import Events from "./pages/pro/Events";
 import FloorPlan from "./pages/pro/FloorPlan";
+import Products from "./pages/pro/Products";
 import Client from "./pages/Client";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -34,7 +35,7 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="events" element={<Events />} />
               <Route path="floor-plan" element={<FloorPlan />} />
-              <Route path="products" element={<Dashboard />} />
+              <Route path="products" element={<Products />} />
               <Route path="users" element={<Dashboard />} />
               <Route path="stats" element={<Dashboard />} />
               <Route path="settings" element={<Dashboard />} />
