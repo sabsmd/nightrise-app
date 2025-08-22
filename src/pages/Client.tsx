@@ -1,16 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 import {
   Calendar,
   MapPin,
   Users,
   Clock,
   Star,
-  ArrowRight
+  ArrowRight,
+  LogIn,
+  LogOut,
+  User
 } from "lucide-react";
 
 export default function Client() {
+  const { user, profile, signOut, loading } = useAuth();
+  
   // Mock events data for clients
   const upcomingEvents = [
     {
@@ -51,10 +58,72 @@ export default function Client() {
     }
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Calendar className="w-8 h-8 text-primary-foreground" />
+          </div>
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Header with Auth */}
+      <header className="absolute top-0 left-0 right-0 z-20 bg-black/20 backdrop-blur-sm border-b border-white/10">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="text-xl font-bold text-white">
+              Pool Party
+            </div>
+            <div className="flex items-center gap-4">
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 text-white">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm">
+                      Bonjour, {profile?.nom || user.email}
+                      {profile?.role === "admin" && (
+                        <Badge className="ml-2 bg-primary text-primary-foreground">Pro</Badge>
+                      )}
+                    </span>
+                  </div>
+                  {profile?.role === "admin" && (
+                    <Link to="/pro">
+                      <Button variant="secondary" size="sm">
+                        Espace Pro
+                      </Button>
+                    </Link>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={signOut}
+                    className="border-white/30 text-white hover:bg-white/10"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Déconnexion
+                  </Button>
+                </div>
+              ) : (
+                <Link to="/auth">
+                  <Button variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Connexion
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <div className="relative bg-gradient-hero text-primary-foreground overflow-hidden">
+      <div className="relative bg-gradient-hero text-primary-foreground overflow-hidden pt-20">
         <div className="absolute inset-0 bg-black/20" />
         <div className="relative z-10 container mx-auto px-6 py-24">
           <div className="max-w-4xl mx-auto text-center">
@@ -69,10 +138,19 @@ export default function Client() {
                 <Calendar className="w-5 h-5 mr-2" />
                 Voir les événements
               </Button>
-              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
-                <Users className="w-5 h-5 mr-2" />
-                Réserver une table
-              </Button>
+              {user ? (
+                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+                  <Users className="w-5 h-5 mr-2" />
+                  Réserver une table
+                </Button>
+              ) : (
+                <Link to="/auth">
+                  <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
+                    <LogIn className="w-5 h-5 mr-2" />
+                    Se connecter pour réserver
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>

@@ -1,12 +1,25 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Outlet } from "react-router-dom";
-import { Bell, User } from "lucide-react";
+import { Outlet, Link } from "react-router-dom";
+import { Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useAuth } from "@/hooks/useAuth";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function ProLayout() {
+  const { profile, signOut } = useAuth();
+
   return (
-    <SidebarProvider>
+    <ProtectedRoute requireRole="admin">
+      <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         
@@ -27,9 +40,37 @@ export function ProLayout() {
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
               </Button>
               
-              <Button variant="ghost" size="sm">
-                <User className="w-5 h-5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <User className="w-5 h-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{profile?.nom}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {profile?.etablissement}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/" className="cursor-pointer">
+                      Interface Client
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={signOut}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Déconnexion
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
           
@@ -40,5 +81,6 @@ export function ProLayout() {
         </div>
       </div>
     </SidebarProvider>
+    </ProtectedRoute>
   );
 }
