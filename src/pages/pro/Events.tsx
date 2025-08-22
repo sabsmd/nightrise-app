@@ -185,109 +185,109 @@ export default function Events() {
               Nouvel événement
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card border-border max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>
-                {editingEvent ? 'Modifier l\'événement' : 'Créer un nouvel événement'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingEvent ? 'Modifiez les informations de votre événement.' : 'Ajoutez les informations essentielles de votre événement.'}
-              </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-4 py-4">
-              <div>
-                <label className="text-sm font-medium">Titre de l'événement *</label>
-                <Input placeholder="Ex: Pool Party VIP Summer" className="mt-1" value={newEvent.titre} onChange={e => setNewEvent({
-                ...newEvent,
-                titre: e.target.value
-              })} />
-              </div>
+          <DialogContent className="bg-card border-border w-full max-w-2xl">
+            <div className="max-h-[100vh] overflow-y-auto">
+              <DialogHeader className="p-6 pb-4">
+                <DialogTitle>
+                  {editingEvent ? 'Modifier l\'événement' : 'Créer un nouvel événement'}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingEvent ? 'Modifiez les informations de votre événement.' : 'Ajoutez les informations essentielles de votre événement.'}
+                </DialogDescription>
+              </DialogHeader>
               
-              <div>
-                <label className="text-sm font-medium">Type d'événement</label>
-                <Select value={newEvent.type_evenement} onValueChange={value => setNewEvent({
-                ...newEvent,
-                type_evenement: value
-              })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Sélectionner le type d'événement" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pool Party">🏊 Pool Party</SelectItem>
-                    <SelectItem value="Boite de nuit">🕺 Boite de nuit</SelectItem>
-                    <SelectItem value="Rooftop">🏢 Rooftop</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Artiste / DJ</label>
-                <div className="relative">
-                  <Music className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Ex: DJ Snake, Martin Garrix..." className="mt-1 pl-10" value={newEvent.artiste_dj} onChange={e => setNewEvent({
+              <div className="px-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Titre de l'événement *</label>
+                  <Input placeholder="Ex: Pool Party VIP Summer" className="mt-1" value={newEvent.titre} onChange={e => setNewEvent({
                   ...newEvent,
-                  artiste_dj: e.target.value
+                  titre: e.target.value
                 })} />
                 </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <Textarea placeholder="Description de l'événement" className="mt-1" value={newEvent.description} onChange={e => setNewEvent({
-                ...newEvent,
-                description: e.target.value
-              })} />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Date *</label>
-                <Input type="date" className="mt-1" value={newEvent.date} onChange={e => setNewEvent({
-                ...newEvent,
-                date: e.target.value
-              })} />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Lieu *</label>
-                <Input placeholder="Ex: Terrasse VIP" className="mt-1" value={newEvent.lieu} onChange={e => setNewEvent({
-                ...newEvent,
-                lieu: e.target.value
-              })} />
-              </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Type d'événement</label>
+                  <Select value={newEvent.type_evenement} onValueChange={value => setNewEvent({
+                  ...newEvent,
+                  type_evenement: value
+                })}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Sélectionner le type d'événement" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pool Party">🏊 Pool Party</SelectItem>
+                      <SelectItem value="Boite de nuit">🕺 Boite de nuit</SelectItem>
+                      <SelectItem value="Rooftop">🏢 Rooftop</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <label className="text-sm font-medium">Photo de l'événement</label>
-                <div className="mt-1 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="flex-1">
-                      <Upload className="w-4 h-4 mr-2" />
-                      {newEvent.image_file ? 'Changer la photo' : 'Télécharger une photo'}
-                    </Button>
-                    <input type="file" ref={fileInputRef} accept="image/jpeg,image/png" onChange={handleFileChange} className="hidden" />
+                <div>
+                  <label className="text-sm font-medium">Artiste / DJ</label>
+                  <div className="relative">
+                    <Music className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input placeholder="Ex: DJ Snake, Martin Garrix..." className="mt-1 pl-10" value={newEvent.artiste_dj} onChange={e => setNewEvent({
+                    ...newEvent,
+                    artiste_dj: e.target.value
+                  })} />
                   </div>
-                  {newEvent.image_file && <p className="text-xs text-muted-foreground">
-                      Fichier sélectionné: {newEvent.image_file.name}
-                    </p>}
-                  <p className="text-xs text-muted-foreground">
-                    Formats acceptés: JPEG, PNG • Taille max: 5MB
-                  </p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea placeholder="Description de l'événement" className="mt-1" value={newEvent.description} onChange={e => setNewEvent({
+                  ...newEvent,
+                  description: e.target.value
+                })} />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Date *</label>
+                  <Input type="date" className="mt-1" value={newEvent.date} onChange={e => setNewEvent({
+                  ...newEvent,
+                  date: e.target.value
+                })} />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium">Lieu *</label>
+                  <Input placeholder="Ex: Terrasse VIP" className="mt-1" value={newEvent.lieu} onChange={e => setNewEvent({
+                  ...newEvent,
+                  lieu: e.target.value
+                })} />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Photo de l'événement</label>
+                  <div className="mt-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="flex-1">
+                        <Upload className="w-4 h-4 mr-2" />
+                        {newEvent.image_file ? 'Changer la photo' : 'Télécharger une photo'}
+                      </Button>
+                      <input type="file" ref={fileInputRef} accept="image/jpeg,image/png" onChange={handleFileChange} className="hidden" />
+                    </div>
+                    {newEvent.image_file && <p className="text-xs text-muted-foreground">
+                        Fichier sélectionné: {newEvent.image_file.name}
+                      </p>}
+                    <p className="text-xs text-muted-foreground">
+                      Formats acceptés: JPEG, PNG • Taille max: 5MB
+                    </p>
+                  </div>
                 </div>
               </div>
               
-              
-              
-               </div>
-             </ScrollArea>
-             
-             <div className="flex justify-end gap-2 pt-4 border-t">
-               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                 Annuler
-               </Button>
-               <Button className="bg-gradient-primary" onClick={createOrUpdateEvent}>
-                 {editingEvent ? 'Enregistrer les modifications' : 'Créer l\'événement'}
-               </Button>
-             </div>
+              <div className="sticky bottom-0 bg-card border-t p-6 mt-8">
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button className="bg-gradient-primary" onClick={createOrUpdateEvent}>
+                    {editingEvent ? 'Enregistrer les modifications' : 'Créer l\'événement'}
+                  </Button>
+                </div>
+              </div>
+            </div>
            </DialogContent>
         </Dialog>
       </div>
