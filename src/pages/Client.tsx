@@ -1,70 +1,92 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/hooks/useAuth";
-import { Link } from "react-router-dom";
-import {
-  Calendar,
-  MapPin,
-  Users,
-  Clock,
-  Star,
-  ArrowRight,
-  LogIn,
-  LogOut,
-  User
-} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Search, Calendar, MapPin, Users, Star, Menu, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface Event {
+  id: string;
+  titre: string;
+  description?: string;
+  image?: string;
+  date: string;
+  lieu: string;
+  artiste_dj?: string;
+  type_evenement?: string;
+  created_at: string;
+}
 
 export default function Client() {
   const { user, profile, signOut, loading } = useAuth();
-  
-  // Mock events data for clients
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: "Pool Party VIP Summer",
-      description: "Soirée exclusive en piscine avec DJs internationaux et ambiance tropical unique",
-      date: "Ce soir",
-      time: "22:00",
-      location: "Terrasse VIP",
-      image: "/api/placeholder/600/300",
-      price: "Entrée à partir de 25€",
-      rating: 4.8,
-      category: "Pool Party"
-    },
-    {
-      id: 2,
-      title: "Latino Night Fever",
-      description: "Nuit latine enflammée avec orchestre live, danseuses et cocktails exotiques",
-      date: "Demain",
-      time: "23:00",
-      location: "Salle principale",
-      image: "/api/placeholder/600/300",
-      price: "Entrée à partir de 20€",
-      rating: 4.6,
-      category: "Latino"
-    },
-    {
-      id: 3,
-      title: "Electronic House Session",
-      description: "Session house électrisante avec les meilleurs DJs de la scène underground",
-      date: "Vendredi",
-      time: "21:30",
-      location: "Club principal",
-      image: "/api/placeholder/600/300",
-      price: "Entrée à partir de 30€",
-      rating: 4.9,
-      category: "Electronic"
+  const navigate = useNavigate();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loadingEvents, setLoadingEvents] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    // Filter events based on search query
+    const filtered = events.filter(event => 
+      event.titre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.lieu.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.artiste_dj?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.type_evenement?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredEvents(filtered);
+  }, [events, searchQuery]);
+
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      setEvents(data || []);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      toast.error('Erreur lors du chargement des événements');
+    } finally {
+      setLoadingEvents(false);
     }
-  ];
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setMobileMenuOpen(false);
+      toast.success("Déconnexion réussie");
+    } catch (error) {
+      toast.error("Erreur lors de la déconnexion");
+    }
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <Calendar className="w-8 h-8 text-primary-foreground" />
-          </div>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Chargement...</p>
         </div>
       </div>
@@ -73,230 +95,194 @@ export default function Client() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with Auth */}
-      <header className="absolute top-0 left-0 right-0 z-20 bg-black/20 backdrop-blur-sm border-b border-white/10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xl font-bold text-white">
-              Pool Party
+      {/* Header */}
+      <header className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/80">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">🎉</span>
+              </div>
+              <span className="font-bold text-lg gradient-text">ClubManager</span>
             </div>
-            <div className="flex items-center gap-4">
-              {user ? (
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2 text-white">
-                    <User className="w-4 h-4" />
-                    <span className="text-sm">
-                      Bonjour, {profile?.nom || user.email}
-                      {profile?.role === "admin" && (
-                        <Badge className="ml-2 bg-primary text-primary-foreground">Pro</Badge>
-                      )}
-                    </span>
-                  </div>
-                  {profile?.role === "admin" && (
-                    <Link to="/pro">
-                      <Button variant="secondary" size="sm">
-                        Espace Pro
-                      </Button>
-                    </Link>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={signOut}
-                    className="border-white/30 text-white hover:bg-white/10"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Déconnexion
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              {user && profile ? (
+                <div className="flex items-center space-x-4">
+                  <span className="text-muted-foreground">Bonjour, {profile.nom}</span>
+                  <Button variant="outline" onClick={handleSignOut}>
+                    Se déconnecter
                   </Button>
                 </div>
               ) : (
                 <Link to="/auth">
-                  <Button variant="outline" size="sm" className="border-white/30 text-white hover:bg-white/10">
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Connexion
-                  </Button>
+                  <Button>Se connecter</Button>
                 </Link>
               )}
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
+
+          {/* Mobile Navigation */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-border py-4">
+              {user && profile ? (
+                <div className="space-y-3">
+                  <p className="text-muted-foreground">Bonjour, {profile.nom}</p>
+                  <Button variant="outline" onClick={handleSignOut} className="w-full">
+                    Se déconnecter
+                  </Button>
+                </div>
+              ) : (
+                <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full">Se connecter</Button>
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
       {/* Hero Section */}
-      <div className="relative bg-gradient-hero text-primary-foreground overflow-hidden pt-20">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="relative z-10 container mx-auto px-6 py-24">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-float">
-              ClubManager
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-primary-foreground/90">
-              Découvrez les événements les plus exclusifs de la ville
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="bg-white/20 text-white border-white/30 hover:bg-white/30 backdrop-blur-sm">
-                <Calendar className="w-5 h-5 mr-2" />
-                Voir les événements
-              </Button>
-              {user ? (
-                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
-                  <Users className="w-5 h-5 mr-2" />
-                  Réserver une table
-                </Button>
-              ) : (
-                <Link to="/auth">
-                  <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm">
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Se connecter pour réserver
-                  </Button>
-                </Link>
-              )}
-            </div>
-            
-            {/* Bouton Pro séparé */}
-            <div className="mt-8 pt-6 border-t border-white/20">
-              <Link to="/auth">
-                <Button 
-                  size="lg" 
-                  variant="default" 
-                  className="bg-gradient-primary hover:opacity-90 transition-smooth shadow-glow"
-                >
-                  <User className="w-5 h-5 mr-2" />
-                  Vous êtes pro ? Cliquez ici
-                </Button>
-              </Link>
-              <p className="text-sm text-white/80 mt-2">
-                Accédez à l'interface de gestion professionnelle
-              </p>
-            </div>
+      <section className="bg-gradient-hero py-16 px-4">
+        <div className="container mx-auto text-center">
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+            Découvrez les meilleurs événements
+          </h1>
+          <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
+            Explorez une sélection exclusive d'événements près de chez vous et réservez votre place
+          </p>
+        </div>
+      </section>
+
+      {/* Search Section */}
+      <section className="py-8 px-4 bg-card">
+        <div className="container mx-auto">
+          <div className="relative max-w-md mx-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Rechercher par ville, artiste, type..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-48 translate-x-48 animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-32 -translate-x-32 animate-pulse" />
-      </div>
+      </section>
 
       {/* Events Section */}
-      <div className="container mx-auto px-6 py-16">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 gradient-text">
-              Événements à venir
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Plongez dans l'ambiance unique de nos soirées exceptionnelles
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {upcomingEvents.map((event) => (
-              <Card key={event.id} className="bg-card/80 backdrop-blur-sm border-border/50 hover:bg-card/90 transition-all duration-300 group overflow-hidden">
-                <div className="relative">
-                  <div className="h-48 bg-gradient-secondary rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                    <Calendar className="w-16 h-16 text-primary opacity-30" />
-                    <div className="absolute inset-0 bg-gradient-primary opacity-20 group-hover:opacity-30 transition-opacity" />
-                  </div>
-                  
-                  <Badge className="absolute top-3 left-3 bg-accent text-accent-foreground">
-                    {event.category}
-                  </Badge>
-                  
-                  <div className="absolute top-3 right-3 flex items-center gap-1 bg-black/50 text-white px-2 py-1 rounded text-sm">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    {event.rating}
-                  </div>
-                </div>
-                
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
-                    {event.title}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {event.description}
-                  </p>
-                </CardHeader>
-                
-                <CardContent className="pt-0">
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      {event.date} à {event.time}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      {event.location}
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-accent">
-                        {event.price}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <Button className="w-full bg-gradient-primary hover:opacity-90 shadow-glow group">
-                    Découvrir l'événement
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Features Section */}
-      <div className="bg-secondary/30 py-16">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-8 text-foreground">
-              Pourquoi choisir ClubManager ?
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 shadow-glow">
-                  <Calendar className="w-8 h-8 text-primary-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Événements exclusifs</h3>
-                <p className="text-muted-foreground">
-                  Accédez aux soirées les plus privées et événements VIP de la ville
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center mx-auto mb-4 shadow-accent-glow">
-                  <Users className="w-8 h-8 text-accent-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Tables premium</h3>
-                <p className="text-muted-foreground">
-                  Réservez votre table VIP et profitez d'un service personnalisé
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Star className="w-8 h-8 text-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Expérience unique</h3>
-                <p className="text-muted-foreground">
-                  Vivez des moments inoubliables dans une ambiance exceptionnelle
-                </p>
-              </div>
+      <section className="py-8 px-4">
+        <div className="container mx-auto">
+          <h2 className="text-2xl font-bold mb-6">Événements à venir</h2>
+          
+          {loadingEvents ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-          </div>
+          ) : filteredEvents.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">🎪</div>
+              <h3 className="text-lg font-semibold mb-2">Aucun événement trouvé</h3>
+              <p className="text-muted-foreground">
+                {searchQuery ? "Essayez un autre terme de recherche" : "Aucun événement disponible pour le moment"}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
+                <Card key={event.id} className="overflow-hidden hover:shadow-glow transition-all duration-300 group cursor-pointer">
+                  <div 
+                    className="h-48 bg-gradient-secondary relative overflow-hidden"
+                    onClick={() => navigate(`/event/${event.id}`)}
+                  >
+                    {event.image ? (
+                      <img 
+                        src={event.image} 
+                        alt={event.titre}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-primary flex items-center justify-center">
+                        <span className="text-4xl">🎉</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors duration-300" />
+                    <div className="absolute top-4 left-4">
+                      {event.type_evenement && (
+                        <Badge variant="secondary" className="bg-black/50 text-white">
+                          {event.type_evenement}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                      {event.titre}
+                    </CardTitle>
+                    {event.artiste_dj && (
+                      <CardDescription className="text-accent font-medium">
+                        {event.artiste_dj}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      {formatDate(event.date)}
+                    </div>
+                    
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      {event.lieu}
+                    </div>
+                    
+                    {event.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {event.description}
+                      </p>
+                    )}
+                    
+                    <Button 
+                      className="w-full mt-4" 
+                      onClick={() => navigate(`/event/${event.id}`)}
+                    >
+                      Découvrir
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-card/50 border-t border-border py-8">
-        <div className="container mx-auto px-6">
-          <div className="text-center text-muted-foreground">
-            <p>&copy; 2024 ClubManager. Tous droits réservés.</p>
-            <p className="text-sm mt-2">Interface Client - Découvrez nos événements exclusifs</p>
+      <footer className="bg-card border-t border-border py-8 px-4 mt-16">
+        <div className="container mx-auto text-center">
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <div className="w-6 h-6 bg-gradient-primary rounded-lg flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-xs">🎉</span>
+            </div>
+            <span className="font-bold gradient-text">ClubManager</span>
           </div>
+          <p className="text-muted-foreground text-sm">
+            © 2024 ClubManager - Interface Client
+          </p>
+          <p className="text-muted-foreground text-xs mt-2">
+            Découvrez et réservez les meilleurs événements près de chez vous
+          </p>
         </div>
       </footer>
     </div>

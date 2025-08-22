@@ -11,6 +11,8 @@ import FloorPlan from "./pages/pro/FloorPlan";
 import Products from "./pages/pro/Products";
 import Client from "./pages/Client";
 import Auth from "./pages/Auth";
+import ClientAuth from "./pages/ClientAuth";
+import EventDetails from "./pages/EventDetails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,11 +26,15 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
           <Routes>
-            {/* Authentication */}
-            <Route path="/auth" element={<Auth />} />
+            {/* Authentication for Clients */}
+            <Route path="/auth" element={<ClientAuth />} />
+            
+            {/* Authentication for Pros (existing auth page) */}
+            <Route path="/pro/auth" element={<Auth />} />
             
             {/* Interface CLIENT */}
             <Route path="/" element={<Client />} />
+            <Route path="/event/:eventId" element={<EventDetails />} />
             
             {/* Interface PRO - Protégée (Admin uniquement) */}
             <Route path="/pro" element={<ProLayout />}>
