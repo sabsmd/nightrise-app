@@ -26,6 +26,7 @@ import {
 const navigationItems = [
   { title: "Dashboard", url: "/pro", icon: Home },
   { title: "Événements", url: "/pro/events", icon: Calendar },
+  { title: "Codes minimum spend", url: "/pro/min-spend-codes", icon: Crown },
   { title: "Plan de salle", url: "/pro/floor-plan", icon: MapPin },
   { title: "Produits", url: "/pro/products", icon: ShoppingBag },
   { title: "Utilisateurs", url: "/pro/users", icon: Users },

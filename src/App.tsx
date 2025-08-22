@@ -10,6 +10,7 @@ import Events from "./pages/pro/Events";
 import ProEventDetails from "./pages/pro/EventDetails";
 import FloorPlan from "./pages/pro/FloorPlan";
 import Products from "./pages/pro/Products";
+import MinSpendCodes from "./pages/pro/MinSpendCodes";
 import Client from "./pages/Client";
 import Auth from "./pages/Auth";
 import ClientAuth from "./pages/ClientAuth";
@@ -42,6 +43,7 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="events" element={<Events />} />
               <Route path="events/:eventId" element={<ProEventDetails />} />
+              <Route path="min-spend-codes" element={<MinSpendCodes />} />
               <Route path="floor-plan" element={<FloorPlan />} />
               <Route path="products" element={<Products />} />
               <Route path="users" element={<Dashboard />} />
