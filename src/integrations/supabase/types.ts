@@ -171,27 +171,36 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          etablissement: string | null
           id: string
           nom: string
           role: Database["public"]["Enums"]["user_role"]
+          siret: string | null
+          telephone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           email: string
+          etablissement?: string | null
           id?: string
           nom: string
           role?: Database["public"]["Enums"]["user_role"]
+          siret?: string | null
+          telephone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           email?: string
+          etablissement?: string | null
           id?: string
           nom?: string
           role?: Database["public"]["Enums"]["user_role"]
+          siret?: string | null
+          telephone?: string | null
           updated_at?: string
           user_id?: string
         }
