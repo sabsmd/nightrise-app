@@ -16,33 +16,42 @@ export type Database = {
     Tables: {
       events: {
         Row: {
+          artiste_dj: string | null
           created_at: string
           date: string
           description: string | null
           id: string
           image: string | null
+          image_file: string | null
           lieu: string
           titre: string
+          type_evenement: string | null
           updated_at: string
         }
         Insert: {
+          artiste_dj?: string | null
           created_at?: string
           date: string
           description?: string | null
           id?: string
           image?: string | null
+          image_file?: string | null
           lieu: string
           titre: string
+          type_evenement?: string | null
           updated_at?: string
         }
         Update: {
+          artiste_dj?: string | null
           created_at?: string
           date?: string
           description?: string | null
           id?: string
           image?: string | null
+          image_file?: string | null
           lieu?: string
           titre?: string
+          type_evenement?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -9,15 +9,16 @@ import {
   TrendingUp,
   Clock,
   MapPin,
-  Plus,
-  Eye
+  Plus
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -140,13 +141,13 @@ export default function Dashboard() {
             Gérez vos événements, tables et commandes en temps réel
           </p>
           <div className="flex gap-3">
-            <Button variant="secondary" className="bg-white/20 text-white border-white/30 hover:bg-white/30">
+            <Button 
+              variant="secondary" 
+              className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+              onClick={() => navigate('/pro/events')}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Nouvel événement
-            </Button>
-            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
-              <Eye className="w-4 h-4 mr-2" />
-              Vue d'ensemble
             </Button>
           </div>
         </div>
@@ -210,7 +211,11 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                   <p className="text-muted-foreground mb-4">Aucun événement créé</p>
-                  <Button size="sm" className="bg-gradient-primary">
+                  <Button 
+                    size="sm" 
+                    className="bg-gradient-primary"
+                    onClick={() => navigate('/pro/events')}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     Créer un événement
                   </Button>

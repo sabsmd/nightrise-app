@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Calendar,
   MapPin,
@@ -19,7 +26,9 @@ import {
   Edit,
   Trash2,
   Search,
-  Filter
+  Filter,
+  Upload,
+  Music
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,8 +45,12 @@ export default function Events() {
     description: "",
     date: "",
     lieu: "",
-    image: ""
+    image: "",
+    type_evenement: "",
+    artiste_dj: "",
+    image_file: null as File | null
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -63,6 +76,25 @@ export default function Events() {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Vérifier la taille (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La taille du fichier ne doit pas dépasser 5MB');
+        return;
+      }
+      
+      // Vérifier le format
+      if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        toast.error('Seuls les formats JPEG et PNG sont acceptés');
+        return;
+      }
+      
+      setNewEvent({ ...newEvent, image_file: file });
+    }
+  };
+
   const createEvent = async () => {
     try {
       if (!newEvent.titre || !newEvent.date || !newEvent.lieu) {
@@ -70,9 +102,20 @@ export default function Events() {
         return;
       }
 
+      // Préparer les données à insérer
+      const eventData = {
+        titre: newEvent.titre,
+        description: newEvent.description,
+        date: newEvent.date,
+        lieu: newEvent.lieu,
+        image: newEvent.image,
+        type_evenement: newEvent.type_evenement || null,
+        artiste_dj: newEvent.artiste_dj || null
+      };
+
       const { error } = await supabase
         .from('events')
-        .insert([newEvent]);
+        .insert([eventData]);
 
       if (error) throw error;
 
@@ -83,8 +126,14 @@ export default function Events() {
         description: "",
         date: "",
         lieu: "",
-        image: ""
+        image: "",
+        type_evenement: "",
+        artiste_dj: "",
+        image_file: null
       });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       loadEvents();
     } catch (error) {
       console.error('Erreur lors de la création de l\'événement:', error);
@@ -153,6 +202,37 @@ export default function Events() {
                   onChange={(e) => setNewEvent({...newEvent, titre: e.target.value})}
                 />
               </div>
+              
+              <div>
+                <label className="text-sm font-medium">Type d'événement</label>
+                <Select 
+                  value={newEvent.type_evenement} 
+                  onValueChange={(value) => setNewEvent({...newEvent, type_evenement: value})}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Sélectionner le type d'événement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pool Party">🏊 Pool Party</SelectItem>
+                    <SelectItem value="Boite de nuit">🕺 Boite de nuit</SelectItem>
+                    <SelectItem value="Rooftop">🏢 Rooftop</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Artiste / DJ</label>
+                <div className="relative">
+                  <Music className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input 
+                    placeholder="Ex: DJ Snake, Martin Garrix..." 
+                    className="mt-1 pl-10"
+                    value={newEvent.artiste_dj}
+                    onChange={(e) => setNewEvent({...newEvent, artiste_dj: e.target.value})}
+                  />
+                </div>
+              </div>
+              
               <div>
                 <label className="text-sm font-medium">Description</label>
                 <Textarea 
@@ -162,6 +242,7 @@ export default function Events() {
                   onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
                 />
               </div>
+              
               <div>
                 <label className="text-sm font-medium">Date *</label>
                 <Input 
@@ -171,6 +252,7 @@ export default function Events() {
                   onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
                 />
               </div>
+              
               <div>
                 <label className="text-sm font-medium">Lieu *</label>
                 <Input 
@@ -180,15 +262,52 @@ export default function Events() {
                   onChange={(e) => setNewEvent({...newEvent, lieu: e.target.value})}
                 />
               </div>
+
               <div>
-                <label className="text-sm font-medium">Image (URL)</label>
+                <label className="text-sm font-medium">Photo de l'événement</label>
+                <div className="mt-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {newEvent.image_file ? 'Changer la photo' : 'Télécharger une photo'}
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/jpeg,image/png"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+                  {newEvent.image_file && (
+                    <p className="text-xs text-muted-foreground">
+                      Fichier sélectionné: {newEvent.image_file.name}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Formats acceptés: JPEG, PNG • Taille max: 5MB
+                  </p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Image (URL) - Alternative</label>
                 <Input 
                   placeholder="https://..." 
                   className="mt-1"
                   value={newEvent.image}
                   onChange={(e) => setNewEvent({...newEvent, image: e.target.value})}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Utilisez soit le téléchargement de fichier, soit l'URL d'image
+                </p>
               </div>
+              
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
@@ -244,6 +363,18 @@ export default function Events() {
               <CardTitle className="text-lg font-bold text-foreground line-clamp-1">
                 {event.titre}
               </CardTitle>
+              {event.type_evenement && (
+                <Badge variant="outline" className="w-fit mb-2">
+                  {event.type_evenement === 'Pool Party' ? '🏊' : 
+                   event.type_evenement === 'Boite de nuit' ? '🕺' : '🏢'} {event.type_evenement}
+                </Badge>
+              )}
+              {event.artiste_dj && (
+                <div className="flex items-center gap-2 mb-2">
+                  <Music className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">{event.artiste_dj}</span>
+                </div>
+              )}
               <p className="text-sm text-muted-foreground line-clamp-2">
                 {event.description || "Aucune description"}
               </p>
