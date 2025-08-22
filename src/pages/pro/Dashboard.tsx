@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,71 +12,122 @@ import {
   Plus,
   Eye
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function Dashboard() {
-  // Mock data
-  const stats = [
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    activeEvents: 0,
+    reservedTables: 0,
+    totalTables: 0,
+    dailyRevenue: 0,
+    pendingOrders: 0
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Charger les événements
+      const { data: eventsData, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (eventsError) throw eventsError;
+
+      // Charger les commandes récentes
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items(*)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (ordersError) throw ordersError;
+
+      // Calculer les statistiques
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Revenus du jour
+      const { data: dailyOrdersData, error: dailyOrdersError } = await supabase
+        .from('orders')
+        .select('montant_total')
+        .gte('created_at', today + 'T00:00:00')
+        .lte('created_at', today + 'T23:59:59');
+
+      if (dailyOrdersError) throw dailyOrdersError;
+
+      const dailyRevenue = dailyOrdersData?.reduce((sum, order) => sum + Number(order.montant_total), 0) || 0;
+
+      // Commandes en attente
+      const { data: pendingOrdersData, error: pendingOrdersError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('statut', 'pending');
+
+      if (pendingOrdersError) throw pendingOrdersError;
+
+      setEvents(eventsData || []);
+      setOrders(ordersData || []);
+      setStats({
+        activeEvents: eventsData?.length || 0,
+        reservedTables: 0, // À calculer plus tard avec les tables
+        totalTables: 0,
+        dailyRevenue,
+        pendingOrders: pendingOrdersData?.length || 0
+      });
+
+    } catch (error) {
+      console.error('Erreur lors du chargement du dashboard:', error);
+      toast.error('Erreur lors du chargement des données');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statsConfig = [
     {
       title: "Événements actifs",
-      value: "3",
-      change: "+2",
+      value: stats.activeEvents.toString(),
+      change: "",
       icon: Calendar,
       color: "text-accent"
     },
     {
       title: "Tables réservées",
-      value: "24/32",
-      change: "75%",
+      value: `${stats.reservedTables}/${stats.totalTables}`,
+      change: stats.totalTables > 0 ? `${Math.round((stats.reservedTables / stats.totalTables) * 100)}%` : "0%",
       icon: MapPin,
       color: "text-primary"
     },
     {
       title: "Revenus du jour",
-      value: "€12,450",
-      change: "+18%",
+      value: `€${stats.dailyRevenue.toFixed(2)}`,
+      change: "",
       icon: DollarSign,
       color: "text-green-400"
     },
     {
       title: "Commandes en cours",
-      value: "8",
+      value: stats.pendingOrders.toString(),
       change: "Temps réel",
       icon: Clock,
       color: "text-orange-400"
     }
-  ];
-
-  const upcomingEvents = [
-    {
-      id: 1,
-      name: "Pool Party VIP",
-      date: "Ce soir",
-      time: "22:00",
-      status: "En cours",
-      guests: 120
-    },
-    {
-      id: 2,
-      name: "Latino Night",
-      date: "Demain",
-      time: "23:00",
-      status: "Confirmé",
-      guests: 85
-    },
-    {
-      id: 3,
-      name: "House Session",
-      date: "Vendredi",
-      time: "21:30",
-      status: "Préparation",
-      guests: 200
-    }
-  ];
-
-  const recentOrders = [
-    { id: 1, table: "VIP 1", items: "2x Dom Pérignon, 1x Shisha", total: "€580", status: "En cours" },
-    { id: 2, table: "Table 5", items: "4x Cocktails Premium", total: "€120", status: "Servi" },
-    { id: 3, table: "VIP 3", items: "1x Bouteille Vodka, Mixers", total: "€350", status: "Validé" }
   ];
 
   return (
@@ -104,7 +156,7 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsConfig.map((stat, index) => (
           <Card key={index} className="bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/70 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -136,26 +188,34 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{event.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {event.date} à {event.time}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{event.guests} invités</span>
+              {events.length > 0 ? (
+                events.slice(0, 3).map((event) => (
+                  <div key={event.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <div>
+                      <h3 className="font-semibold text-foreground">{event.titre}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(event.date).toLocaleDateString('fr-FR')}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{event.lieu}</span>
+                      </div>
                     </div>
+                    <Badge variant="secondary">
+                      Programmé
+                    </Badge>
                   </div>
-                  <Badge 
-                    variant={event.status === "En cours" ? "default" : "secondary"}
-                    className={event.status === "En cours" ? "bg-accent text-accent-foreground" : ""}
-                  >
-                    {event.status}
-                  </Badge>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground mb-4">Aucun événement créé</p>
+                  <Button size="sm" className="bg-gradient-primary">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Créer un événement
+                  </Button>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
@@ -170,21 +230,36 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{order.table}</h3>
-                    <p className="text-sm text-muted-foreground">{order.items}</p>
-                    <p className="text-lg font-bold text-primary mt-1">{order.total}</p>
+              {orders.length > 0 ? (
+                orders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                    <div>
+                      <h3 className="font-semibold text-foreground">Commande #{order.id.slice(0, 8)}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {order.order_items?.length || 0} article(s)
+                      </p>
+                      <p className="text-lg font-bold text-primary mt-1">€{Number(order.montant_total).toFixed(2)}</p>
+                    </div>
+                    <Badge 
+                      variant={order.statut === "pending" ? "default" : "secondary"}
+                      className={
+                        order.statut === "pending" ? "bg-orange-500 text-white" : 
+                        order.statut === "completed" ? "bg-green-500 text-white" : 
+                        "bg-blue-500 text-white"
+                      }
+                    >
+                      {order.statut === "pending" ? "En cours" : 
+                       order.statut === "completed" ? "Terminé" : 
+                       order.statut}
+                    </Badge>
                   </div>
-                  <Badge 
-                    variant={order.status === "En cours" ? "default" : "secondary"}
-                    className={order.status === "En cours" ? "bg-orange-500 text-white" : order.status === "Servi" ? "bg-green-500 text-white" : "bg-blue-500 text-white"}
-                  >
-                    {order.status}
-                  </Badge>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">Aucune commande récente</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>

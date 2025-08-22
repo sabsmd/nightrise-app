@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -20,49 +21,98 @@ import {
   Search,
   Filter
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function Events() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Mock events data
-  const events = [
-    {
-      id: 1,
-      title: "Pool Party VIP Summer",
-      description: "Soirée exclusive en piscine avec DJs internationaux",
-      date: "2024-08-25",
-      time: "22:00",
-      location: "Terrasse VIP",
-      capacity: 150,
-      currentGuests: 120,
-      status: "En cours",
-      image: "/api/placeholder/400/200"
-    },
-    {
-      id: 2,
-      title: "Latino Night Fever",
-      description: "Nuit latine avec orchestre live et danseuses",
-      date: "2024-08-26",
-      time: "23:00",
-      location: "Salle principale",
-      capacity: 200,
-      currentGuests: 85,
-      status: "Confirmé",
-      image: "/api/placeholder/400/200"
-    },
-    {
-      id: 3,
-      title: "Electronic House Session",
-      description: "Session house avec les meilleurs DJs électro de la ville",
-      date: "2024-08-30",
-      time: "21:30",
-      location: "Club principal",
-      capacity: 300,
-      currentGuests: 0,
-      status: "Préparation",
-      image: "/api/placeholder/400/200"
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    titre: "",
+    description: "",
+    date: "",
+    lieu: "",
+    image: ""
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadEvents();
     }
-  ];
+  }, [user]);
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      setEvents(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des événements:', error);
+      toast.error('Erreur lors du chargement des événements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createEvent = async () => {
+    try {
+      if (!newEvent.titre || !newEvent.date || !newEvent.lieu) {
+        toast.error('Veuillez remplir tous les champs obligatoires');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('events')
+        .insert([newEvent]);
+
+      if (error) throw error;
+
+      toast.success('Événement créé avec succès !');
+      setIsDialogOpen(false);
+      setNewEvent({
+        titre: "",
+        description: "",
+        date: "",
+        lieu: "",
+        image: ""
+      });
+      loadEvents();
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'événement:', error);
+      toast.error('Erreur lors de la création de l\'événement');
+    }
+  };
+
+  const deleteEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      toast.success('Événement supprimé avec succès !');
+      loadEvents();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'événement:', error);
+      toast.error('Erreur lors de la suppression de l\'événement');
+    }
+  };
+
+  const filteredEvents = events.filter(event =>
+    event.titre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    event.lieu.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -82,7 +132,7 @@ export default function Events() {
           <p className="text-muted-foreground">Créez et gérez vos soirées et événements spéciaux</p>
         </div>
         
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90 shadow-glow">
               <Plus className="w-4 h-4 mr-2" />
@@ -95,34 +145,57 @@ export default function Events() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <label className="text-sm font-medium">Titre de l'événement</label>
-                <Input placeholder="Ex: Pool Party VIP Summer" className="mt-1" />
+                <label className="text-sm font-medium">Titre de l'événement *</label>
+                <Input 
+                  placeholder="Ex: Pool Party VIP Summer" 
+                  className="mt-1"
+                  value={newEvent.titre}
+                  onChange={(e) => setNewEvent({...newEvent, titre: e.target.value})}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">Description</label>
-                <Input placeholder="Description de l'événement" className="mt-1" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Date</label>
-                  <Input type="date" className="mt-1" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Heure</label>
-                  <Input type="time" className="mt-1" />
-                </div>
+                <Textarea 
+                  placeholder="Description de l'événement" 
+                  className="mt-1"
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
+                />
               </div>
               <div>
-                <label className="text-sm font-medium">Lieu</label>
-                <Input placeholder="Ex: Terrasse VIP" className="mt-1" />
+                <label className="text-sm font-medium">Date *</label>
+                <Input 
+                  type="date" 
+                  className="mt-1"
+                  value={newEvent.date}
+                  onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
+                />
               </div>
               <div>
-                <label className="text-sm font-medium">Capacité maximale</label>
-                <Input type="number" placeholder="150" className="mt-1" />
+                <label className="text-sm font-medium">Lieu *</label>
+                <Input 
+                  placeholder="Ex: Terrasse VIP" 
+                  className="mt-1"
+                  value={newEvent.lieu}
+                  onChange={(e) => setNewEvent({...newEvent, lieu: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Image (URL)</label>
+                <Input 
+                  placeholder="https://..." 
+                  className="mt-1"
+                  value={newEvent.image}
+                  onChange={(e) => setNewEvent({...newEvent, image: e.target.value})}
+                />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline">Annuler</Button>
-                <Button className="bg-gradient-primary">Créer l'événement</Button>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button className="bg-gradient-primary" onClick={createEvent}>
+                  Créer l'événement
+                </Button>
               </div>
             </div>
           </DialogContent>
@@ -148,23 +221,31 @@ export default function Events() {
 
       {/* Events Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {events.map((event) => (
+        {filteredEvents.map((event) => (
           <Card key={event.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/70 transition-all duration-300 group">
             <div className="relative">
-              <div className="h-48 bg-gradient-secondary rounded-t-lg flex items-center justify-center">
-                <Calendar className="w-16 h-16 text-primary opacity-50" />
-              </div>
-              <Badge className={`absolute top-3 right-3 ${getStatusColor(event.status)}`}>
-                {event.status}
+              {event.image ? (
+                <img 
+                  src={event.image} 
+                  alt={event.titre}
+                  className="h-48 w-full object-cover rounded-t-lg"
+                />
+              ) : (
+                <div className="h-48 bg-gradient-secondary rounded-t-lg flex items-center justify-center">
+                  <Calendar className="w-16 h-16 text-primary opacity-50" />
+                </div>
+              )}
+              <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
+                Programmé
               </Badge>
             </div>
             
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-bold text-foreground line-clamp-1">
-                {event.title}
+                {event.titre}
               </CardTitle>
               <p className="text-sm text-muted-foreground line-clamp-2">
-                {event.description}
+                {event.description || "Aucune description"}
               </p>
             </CardHeader>
             
@@ -172,28 +253,12 @@ export default function Events() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="w-4 h-4" />
-                  {new Date(event.date).toLocaleDateString('fr-FR')} à {event.time}
+                  {new Date(event.date).toLocaleDateString('fr-FR')}
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="w-4 h-4" />
-                  {event.location}
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-foreground font-medium">
-                    {event.currentGuests}/{event.capacity}
-                  </span>
-                  <span className="text-muted-foreground">invités</span>
-                </div>
-                
-                {/* Progress bar */}
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div 
-                    className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(event.currentGuests / event.capacity) * 100}%` }}
-                  />
+                  {event.lieu}
                 </div>
                 
                 <div className="flex items-center gap-2 pt-2">
@@ -201,7 +266,12 @@ export default function Events() {
                     <Edit className="w-4 h-4 mr-1" />
                     Modifier
                   </Button>
-                  <Button variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={() => deleteEvent(event.id)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -212,15 +282,21 @@ export default function Events() {
       </div>
 
       {/* Empty State */}
-      {events.length === 0 && (
+      {!loading && filteredEvents.length === 0 && (
         <div className="text-center py-12">
           <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">Aucun événement trouvé</h3>
-          <p className="text-muted-foreground mb-4">Créez votre premier événement pour commencer</p>
-          <Button className="bg-gradient-primary">
-            <Plus className="w-4 h-4 mr-2" />
-            Créer un événement
-          </Button>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            {events.length === 0 ? "Aucun événement créé" : "Aucun événement trouvé"}
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            {events.length === 0 ? "Créez votre premier événement pour commencer" : "Essayez avec d'autres termes de recherche"}
+          </p>
+          {events.length === 0 && (
+            <Button className="bg-gradient-primary" onClick={() => setIsDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Créer un événement
+            </Button>
+          )}
         </div>
       )}
     </div>

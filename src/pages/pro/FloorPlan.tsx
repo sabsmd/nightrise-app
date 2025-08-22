@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,102 +17,132 @@ import {
   Trash2,
   Save,
   Eye,
-  Settings
+  Settings,
+  Calendar
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function FloorPlan() {
-  const [selectedEvent, setSelectedEvent] = useState("1");
+  const { user } = useAuth();
+  const [selectedEvent, setSelectedEvent] = useState("");
   const [editMode, setEditMode] = useState(false);
-  
-  // Mock data
-  const events = [
-    { id: "1", name: "Pool Party VIP Summer" },
-    { id: "2", name: "Latino Night Fever" },
-    { id: "3", name: "Electronic House Session" }
-  ];
+  const [events, setEvents] = useState<any[]>([]);
+  const [tables, setTables] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const tables = [
-    {
-      id: 1,
-      name: "VIP 1",
-      type: "VIP",
-      capacity: 8,
-      minSpend: 800,
-      status: "occupied",
-      x: 150,
-      y: 100,
-      currentSpend: 1200
-    },
-    {
-      id: 2,
-      name: "VIP 2",
-      type: "VIP",
-      capacity: 6,
-      minSpend: 600,
-      status: "reserved",
-      x: 350,
-      y: 100,
-      currentSpend: 0
-    },
-    {
-      id: 3,
-      name: "Table 1",
-      type: "Standard",
-      capacity: 4,
-      minSpend: 200,
-      status: "available",
-      x: 100,
-      y: 250,
-      currentSpend: 0
-    },
-    {
-      id: 4,
-      name: "Table 2",
-      type: "Standard",
-      capacity: 4,
-      minSpend: 200,
-      status: "occupied",
-      x: 250,
-      y: 250,
-      currentSpend: 380
-    },
-    {
-      id: 5,
-      name: "Bar 1",
-      type: "Bar",
-      capacity: 10,
-      minSpend: 0,
-      status: "available",
-      x: 400,
-      y: 300,
-      currentSpend: 0
+  useEffect(() => {
+    if (user) {
+      loadEvents();
     }
-  ];
+  }, [user]);
 
-  const getTableColor = (status: string, type: string) => {
-    if (type === "VIP") {
-      switch (status) {
-        case "occupied": return "bg-gradient-primary border-primary shadow-glow";
-        case "reserved": return "bg-primary/20 border-primary border-2";
-        case "available": return "bg-primary/10 border-primary border-dashed";
-        default: return "bg-secondary border-border";
+  useEffect(() => {
+    if (selectedEvent) {
+      loadTables();
+    }
+  }, [selectedEvent]);
+
+  const loadEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      setEvents(data || []);
+      
+      // Sélectionner automatiquement le premier événement s'il existe
+      if (data && data.length > 0 && !selectedEvent) {
+        setSelectedEvent(data[0].id);
       }
-    } else {
-      switch (status) {
-        case "occupied": return "bg-accent/80 border-accent shadow-accent-glow";
-        case "reserved": return "bg-accent/20 border-accent border-2";
-        case "available": return "bg-secondary border-border";
-        default: return "bg-muted border-border";
-      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des événements:', error);
+      toast.error('Erreur lors du chargement des événements');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "occupied": return "Occupée";
-      case "reserved": return "Réservée";
-      case "available": return "Libre";
-      default: return "Inconnue";
+  const loadTables = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tables')
+        .select('*')
+        .eq('event_id', selectedEvent);
+
+      if (error) throw error;
+      setTables(data || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des tables:', error);
+      toast.error('Erreur lors du chargement des tables');
+    }
+  };
+
+  const addTable = async () => {
+    try {
+      if (!selectedEvent) {
+        toast.error('Veuillez sélectionner un événement');
+        return;
+      }
+
+      const newTable = {
+        nom: `Table ${tables.length + 1}`,
+        event_id: selectedEvent,
+        position_x: 100 + (tables.length * 50),
+        position_y: 100 + (tables.length * 50),
+        min_spend: 100,
+        etat: 'libre' as 'libre'
+      };
+
+      const { error } = await supabase
+        .from('tables')
+        .insert([newTable]);
+
+      if (error) throw error;
+
+      toast.success('Table ajoutée avec succès !');
+      loadTables();
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de la table:', error);
+      toast.error('Erreur lors de l\'ajout de la table');
+    }
+  };
+
+  const deleteTable = async (tableId: string) => {
+    try {
+      const { error } = await supabase
+        .from('tables')
+        .delete()
+        .eq('id', tableId);
+
+      if (error) throw error;
+
+      toast.success('Table supprimée avec succès !');
+      loadTables();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la table:', error);
+      toast.error('Erreur lors de la suppression de la table');
+    }
+  };
+
+  const getTableColor = (etat: string) => {
+    switch (etat) {
+      case "occupee": return "bg-gradient-primary border-primary shadow-glow";
+      case "reservee": return "bg-primary/20 border-primary border-2";
+      case "libre": return "bg-secondary border-border";
+      default: return "bg-muted border-border";
+    }
+  };
+
+  const getStatusText = (etat: string) => {
+    switch (etat) {
+      case "occupee": return "Occupée";
+      case "reservee": return "Réservée";
+      case "libre": return "Libre";
+      default: return "Libre";
     }
   };
 
@@ -133,7 +163,7 @@ export default function FloorPlan() {
             <SelectContent>
               {events.map((event) => (
                 <SelectItem key={event.id} value={event.id}>
-                  {event.name}
+                  {event.titre}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -148,7 +178,11 @@ export default function FloorPlan() {
             {editMode ? "Sauvegarder" : "Modifier"}
           </Button>
           
-          <Button className="bg-gradient-primary hover:opacity-90">
+          <Button 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={addTable}
+            disabled={!selectedEvent}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Ajouter table
           </Button>
@@ -183,18 +217,16 @@ export default function FloorPlan() {
                 </div>
                 
                 {/* Tables */}
-                {tables.map((table) => (
+                {tables.length > 0 ? tables.map((table) => (
                   <div
                     key={table.id}
-                    className={`absolute w-24 h-24 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 ${getTableColor(table.status, table.type)}`}
-                    style={{ left: table.x, top: table.y }}
+                    className={`absolute w-24 h-24 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 ${getTableColor(table.etat)}`}
+                    style={{ left: table.position_x, top: table.position_y }}
                   >
                     <div className="text-center">
-                      <div className="text-xs font-bold">{table.name}</div>
-                      <div className="text-xs opacity-80">{table.capacity}p</div>
-                      {table.status === "occupied" && (
-                        <div className="text-xs font-bold">€{table.currentSpend}</div>
-                      )}
+                      <div className="text-xs font-bold">{table.nom}</div>
+                      <div className="text-xs opacity-80">€{table.min_spend}</div>
+                      <div className="text-xs opacity-70">{getStatusText(table.etat)}</div>
                     </div>
                     
                     {editMode && (
@@ -202,13 +234,35 @@ export default function FloorPlan() {
                         <Button size="sm" variant="outline" className="w-6 h-6 p-0">
                           <Edit className="w-3 h-3" />
                         </Button>
-                        <Button size="sm" variant="outline" className="w-6 h-6 p-0 hover:bg-destructive">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-6 h-6 p-0 hover:bg-destructive"
+                          onClick={() => deleteTable(table.id)}
+                        >
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
                     )}
                   </div>
-                ))}
+                )) : (
+                  // Empty state for tables
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-foreground mb-2">Aucune table configurée</h3>
+                      <p className="text-muted-foreground mb-4">
+                        {selectedEvent ? "Commencez par ajouter des tables à votre plan de salle" : "Sélectionnez un événement pour commencer"}
+                      </p>
+                      {selectedEvent && (
+                        <Button onClick={addTable} className="bg-gradient-primary">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Ajouter une table
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Entrance */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500/20 text-green-400 px-6 py-2 rounded border-2 border-green-500/30">
@@ -256,24 +310,35 @@ export default function FloorPlan() {
                 <div>
                   <div className="flex justify-between text-sm">
                     <span>Tables occupées</span>
-                    <span className="font-bold">3/5</span>
+                    <span className="font-bold">
+                      {tables.filter(t => t.etat === 'occupee').length}/{tables.length}
+                    </span>
                   </div>
                   <div className="w-full bg-secondary rounded-full h-2 mt-1">
-                    <div className="bg-gradient-primary h-2 rounded-full" style={{ width: "60%" }}></div>
+                    <div 
+                      className="bg-gradient-primary h-2 rounded-full" 
+                      style={{ 
+                        width: tables.length > 0 ? `${(tables.filter(t => t.etat === 'occupee').length / tables.length) * 100}%` : "0%" 
+                      }}
+                    ></div>
                   </div>
                 </div>
                 
                 <div>
                   <div className="flex justify-between text-sm">
                     <span>Taux de remplissage</span>
-                    <span className="font-bold text-primary">60%</span>
+                    <span className="font-bold text-primary">
+                      {tables.length > 0 ? Math.round((tables.filter(t => t.etat === 'occupee').length / tables.length) * 100) : 0}%
+                    </span>
                   </div>
                 </div>
                 
                 <div>
                   <div className="flex justify-between text-sm">
-                    <span>Revenus tables</span>
-                    <span className="font-bold text-accent">€1,580</span>
+                    <span>Min spend total</span>
+                    <span className="font-bold text-accent">
+                      €{tables.reduce((sum, table) => sum + Number(table.min_spend || 0), 0)}
+                    </span>
                   </div>
                 </div>
               </div>
