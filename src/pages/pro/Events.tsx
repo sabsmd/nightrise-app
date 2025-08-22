@@ -6,15 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Calendar, MapPin, Users, Edit, Trash2, Search, Filter, Upload, Music } from "lucide-react";
+import { Plus, Calendar, MapPin, Users, Edit, Trash2, Search, Filter, Upload, Music, Eye } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 export default function Events() {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -345,9 +345,12 @@ export default function Events() {
                 </div>
                 
                 <div className="flex items-center gap-2 pt-2">
-                  <Button variant="outline" size="sm" className="flex-1 hover:bg-secondary" onClick={() => startEdit(event)}>
-                    <Edit className="w-4 h-4 mr-1" />
-                    Modifier
+                  <Button variant="outline" size="sm" className="flex-1 hover:bg-secondary" onClick={() => navigate(`/pro/events/${event.id}`)}>
+                    <Eye className="w-4 h-4 mr-1" />
+                    Détails
+                  </Button>
+                  <Button variant="outline" size="sm" className="hover:bg-secondary" onClick={() => startEdit(event)}>
+                    <Edit className="w-4 h-4" />
                   </Button>
                   <Button variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground" onClick={() => deleteEvent(event.id)}>
                     <Trash2 className="w-4 h-4" />

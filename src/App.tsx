@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProLayout } from "./layouts/ProLayout";
 import Dashboard from "./pages/pro/Dashboard";
 import Events from "./pages/pro/Events";
+import ProEventDetails from "./pages/pro/EventDetails";
 import FloorPlan from "./pages/pro/FloorPlan";
 import Products from "./pages/pro/Products";
 import Client from "./pages/Client";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/pro" element={<ProLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="events" element={<Events />} />
+              <Route path="events/:eventId" element={<ProEventDetails />} />
               <Route path="floor-plan" element={<FloorPlan />} />
               <Route path="products" element={<Products />} />
               <Route path="users" element={<Dashboard />} />

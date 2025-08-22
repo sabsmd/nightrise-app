@@ -263,6 +263,60 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_codes: {
+        Row: {
+          code: string
+          created_at: string
+          event_id: string
+          expiration_date: string | null
+          floor_element_id: string | null
+          id: string
+          nom_client: string
+          prenom_client: string
+          statut: string
+          telephone_client: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          event_id: string
+          expiration_date?: string | null
+          floor_element_id?: string | null
+          id?: string
+          nom_client: string
+          prenom_client: string
+          statut?: string
+          telephone_client: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          event_id?: string
+          expiration_date?: string | null
+          floor_element_id?: string | null
+          id?: string
+          nom_client?: string
+          prenom_client?: string
+          statut?: string
+          telephone_client?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_codes_floor_element_id_fkey"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       secret_codes: {
         Row: {
           code_unique: string
