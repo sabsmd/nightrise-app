@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Calendar, MapPin, Users, Edit, Trash2, Search, Filter, Upload, Music } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -184,7 +185,7 @@ export default function Events() {
               Nouvel événement
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {editingEvent ? 'Modifier l\'événement' : 'Créer un nouvel événement'}
@@ -193,7 +194,8 @@ export default function Events() {
                 {editingEvent ? 'Modifiez les informations de votre événement.' : 'Ajoutez les informations essentielles de votre événement.'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <ScrollArea className="flex-1 pr-4">
+              <div className="space-y-4 py-4">
               <div>
                 <label className="text-sm font-medium">Titre de l'événement *</label>
                 <Input placeholder="Ex: Pool Party VIP Summer" className="mt-1" value={newEvent.titre} onChange={e => setNewEvent({
@@ -275,16 +277,18 @@ export default function Events() {
               
               
               
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button className="bg-gradient-primary" onClick={createOrUpdateEvent}>
-                  {editingEvent ? 'Enregistrer les modifications' : 'Créer l\'événement'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
+               </div>
+             </ScrollArea>
+             
+             <div className="flex justify-end gap-2 pt-4 border-t">
+               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                 Annuler
+               </Button>
+               <Button className="bg-gradient-primary" onClick={createOrUpdateEvent}>
+                 {editingEvent ? 'Enregistrer les modifications' : 'Créer l\'événement'}
+               </Button>
+             </div>
+           </DialogContent>
         </Dialog>
       </div>
 
