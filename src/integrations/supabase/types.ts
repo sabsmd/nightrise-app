@@ -59,6 +59,7 @@ export type Database = {
       floor_elements: {
         Row: {
           config: Json | null
+          couleur: string | null
           created_at: string
           event_id: string
           height: number
@@ -72,6 +73,7 @@ export type Database = {
         }
         Insert: {
           config?: Json | null
+          couleur?: string | null
           created_at?: string
           event_id: string
           height?: number
@@ -85,6 +87,7 @@ export type Database = {
         }
         Update: {
           config?: Json | null
+          couleur?: string | null
           created_at?: string
           event_id?: string
           height?: number

@@ -23,7 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import FloorPlanCanvas, { FloorElement } from "@/components/FloorPlanCanvas";
 import ElementPalette from "@/components/ElementPalette";
-import TableConfigDialog from "@/components/TableConfigDialog";
+import ElementConfigDialog from "@/components/ElementConfigDialog";
 
 export default function FloorPlan() {
   const { user } = useAuth();
@@ -157,9 +157,7 @@ export default function FloorPlan() {
   };
 
   const handleElementClick = (element: FloorElement) => {
-    if (element.type === 'table') {
-      setConfigDialog({ open: true, element });
-    }
+    setConfigDialog({ open: true, element });
   };
 
   const handleCanvasDrop = async (elementType: string, x: number, y: number) => {
@@ -189,6 +187,7 @@ export default function FloorPlan() {
         position_y: y,
         width: 80,
         height: 80,
+        couleur: '#3B82F6',
         config: elementType === 'table' ? { capacite: 4, min_spend: 100 } : {}
       };
 
@@ -214,7 +213,8 @@ export default function FloorPlan() {
         .from('floor_elements')
         .update({
           nom: element.nom,
-          config: element.config
+          config: element.config,
+          couleur: element.couleur
         })
         .eq('id', element.id);
 
@@ -364,7 +364,7 @@ export default function FloorPlan() {
         </div>
       </div>
 
-      <TableConfigDialog
+      <ElementConfigDialog
         element={configDialog.element}
         open={configDialog.open}
         onOpenChange={(open) => setConfigDialog({ ...configDialog, open })}

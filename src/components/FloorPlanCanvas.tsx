@@ -12,6 +12,7 @@ export interface FloorElement {
   width: number;
   height: number;
   config?: any;
+  couleur?: string;
 }
 
 interface FloorPlanCanvasProps {
@@ -77,6 +78,17 @@ export default function FloorPlanCanvas({
       minWidth: '40px',
       minHeight: '40px'
     };
+
+    // If custom color is set, use it instead of default type styles
+    if (element.couleur) {
+      return {
+        ...baseStyles,
+        backgroundColor: element.couleur + '20', // Add transparency
+        borderColor: element.couleur,
+        color: element.couleur,
+        borderStyle: element.type === 'entree' ? 'dashed' : 'solid'
+      };
+    }
 
     const typeStyles = {
       table: {
