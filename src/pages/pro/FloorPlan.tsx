@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,25 +11,32 @@ import {
 } from "@/components/ui/select";
 import {
   MapPin,
-  Plus,
   Edit,
-  Trash2,
   Save,
-  Eye,
   Settings,
-  Calendar
+  Plus,
+  Trash2,
+  Eye,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import FloorPlanCanvas, { FloorElement } from "@/components/FloorPlanCanvas";
+import ElementPalette from "@/components/ElementPalette";
+import TableConfigDialog from "@/components/TableConfigDialog";
 
 export default function FloorPlan() {
   const { user } = useAuth();
   const [selectedEvent, setSelectedEvent] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [elements, setElements] = useState<FloorElement[]>([]);
   const [tables, setTables] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [configDialog, setConfigDialog] = useState<{
+    open: boolean;
+    element: FloorElement | null;
+  }>({ open: false, element: null });
 
   useEffect(() => {
     if (user) {
@@ -40,6 +46,7 @@ export default function FloorPlan() {
 
   useEffect(() => {
     if (selectedEvent) {
+      loadElements();
       loadTables();
     }
   }, [selectedEvent]);
@@ -66,6 +73,21 @@ export default function FloorPlan() {
     }
   };
 
+  const loadElements = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('floor_elements')
+        .select('*')
+        .eq('event_id', selectedEvent);
+
+      if (error) throw error;
+      setElements((data || []) as FloorElement[]);
+    } catch (error) {
+      console.error('Erreur lors du chargement des éléments:', error);
+      toast.error('Erreur lors du chargement des éléments');
+    }
+  };
+
   const loadTables = async () => {
     try {
       const { data, error } = await supabase
@@ -81,69 +103,122 @@ export default function FloorPlan() {
     }
   };
 
-  const addTable = async () => {
+  const handleElementMove = async (id: string, x: number, y: number) => {
+    try {
+      const { error } = await supabase
+        .from('floor_elements')
+        .update({ position_x: x, position_y: y })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setElements(prev => prev.map(el => 
+        el.id === id ? { ...el, position_x: x, position_y: y } : el
+      ));
+    } catch (error) {
+      console.error('Erreur lors du déplacement:', error);
+      toast.error('Erreur lors du déplacement de l\'élément');
+    }
+  };
+
+  const handleElementDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('floor_elements')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setElements(prev => prev.filter(el => el.id !== id));
+      toast.success('Élément supprimé avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast.error('Erreur lors de la suppression de l\'élément');
+    }
+  };
+
+  const handleElementClick = (element: FloorElement) => {
+    if (element.type === 'table') {
+      setConfigDialog({ open: true, element });
+    }
+  };
+
+  const handleCanvasDrop = async (elementType: string, x: number, y: number) => {
     try {
       if (!selectedEvent) {
         toast.error('Veuillez sélectionner un événement');
         return;
       }
 
-      const newTable = {
-        nom: `Table ${tables.length + 1}`,
-        event_id: selectedEvent,
-        position_x: 100 + (tables.length * 50),
-        position_y: 100 + (tables.length * 50),
-        min_spend: 100,
-        etat: 'libre' as 'libre'
+      const elementNames = {
+        table: 'Table',
+        entree: 'Entrée',
+        bar: 'Bar',
+        piscine: 'Piscine',
+        bed: 'Bed',
+        sofa: 'Sofa',
+        piste: 'Piste de danse',
+        dj_set: 'DJ Set',
+        scene: 'Scène'
       };
 
-      const { error } = await supabase
-        .from('tables')
-        .insert([newTable]);
+      const newElement = {
+        event_id: selectedEvent,
+        type: elementType,
+        nom: `${elementNames[elementType as keyof typeof elementNames]} ${elements.filter(e => e.type === elementType).length + 1}`,
+        position_x: x,
+        position_y: y,
+        width: 80,
+        height: 80,
+        config: elementType === 'table' ? { capacite: 4, min_spend: 100 } : {}
+      };
+
+      const { data, error } = await supabase
+        .from('floor_elements')
+        .insert([newElement])
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast.success('Table ajoutée avec succès !');
-      loadTables();
+      setElements(prev => [...prev, data as FloorElement]);
+      toast.success('Élément ajouté avec succès !');
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de la table:', error);
-      toast.error('Erreur lors de l\'ajout de la table');
+      console.error('Erreur lors de l\'ajout:', error);
+      toast.error('Erreur lors de l\'ajout de l\'élément');
     }
   };
 
-  const deleteTable = async (tableId: string) => {
+  const handleElementSave = async (element: FloorElement) => {
     try {
       const { error } = await supabase
-        .from('tables')
-        .delete()
-        .eq('id', tableId);
+        .from('floor_elements')
+        .update({
+          nom: element.nom,
+          config: element.config
+        })
+        .eq('id', element.id);
 
       if (error) throw error;
 
-      toast.success('Table supprimée avec succès !');
-      loadTables();
+      setElements(prev => prev.map(el => 
+        el.id === element.id ? element : el
+      ));
+      
+      toast.success('Élément mis à jour avec succès !');
     } catch (error) {
-      console.error('Erreur lors de la suppression de la table:', error);
-      toast.error('Erreur lors de la suppression de la table');
+      console.error('Erreur lors de la mise à jour:', error);
+      toast.error('Erreur lors de la mise à jour de l\'élément');
     }
   };
 
-  const getTableColor = (etat: string) => {
-    switch (etat) {
-      case "occupee": return "bg-gradient-primary border-primary shadow-glow";
-      case "reservee": return "bg-primary/20 border-primary border-2";
-      case "libre": return "bg-secondary border-border";
-      default: return "bg-muted border-border";
-    }
-  };
-
-  const getStatusText = (etat: string) => {
-    switch (etat) {
-      case "occupee": return "Occupée";
-      case "reservee": return "Réservée";
-      case "libre": return "Libre";
-      default: return "Libre";
-    }
+  const getTableStats = () => {
+    const tableElements = elements.filter(e => e.type === 'table');
+    return {
+      total: tableElements.length,
+      totalMinSpend: tableElements.reduce((sum, el) => sum + (el.config?.min_spend || 0), 0)
+    };
   };
 
   return (
@@ -178,14 +253,6 @@ export default function FloorPlan() {
             {editMode ? "Sauvegarder" : "Modifier"}
           </Button>
           
-          <Button 
-            className="bg-gradient-primary hover:opacity-90"
-            onClick={addTable}
-            disabled={!selectedEvent}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Ajouter table
-          </Button>
         </div>
       </div>
 
@@ -204,131 +271,44 @@ export default function FloorPlan() {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="relative bg-secondary/20 rounded-lg p-4 min-h-[500px] border-2 border-dashed border-border">
-                {/* Stage/DJ Area */}
-                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gradient-accent text-accent-foreground px-6 py-3 rounded-lg font-bold shadow-accent-glow">
-                  🎵 DJ STAGE 🎵
-                </div>
-                
-                {/* Bar Area */}
-                <div className="absolute top-4 right-4 bg-muted text-muted-foreground px-4 py-2 rounded border-2 border-border">
-                  BAR PRINCIPAL
-                </div>
-                
-                {/* Tables */}
-                {tables.length > 0 ? tables.map((table) => (
-                  <div
-                    key={table.id}
-                    className={`absolute w-24 h-24 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:scale-105 ${getTableColor(table.etat)}`}
-                    style={{ left: table.position_x, top: table.position_y }}
-                  >
-                    <div className="text-center">
-                      <div className="text-xs font-bold">{table.nom}</div>
-                      <div className="text-xs opacity-80">€{table.min_spend}</div>
-                      <div className="text-xs opacity-70">{getStatusText(table.etat)}</div>
-                    </div>
-                    
-                    {editMode && (
-                      <div className="absolute -top-2 -right-2 flex gap-1">
-                        <Button size="sm" variant="outline" className="w-6 h-6 p-0">
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="w-6 h-6 p-0 hover:bg-destructive"
-                          onClick={() => deleteTable(table.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )) : (
-                  // Empty state for tables
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                      <MapPin className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-foreground mb-2">Aucune table configurée</h3>
-                      <p className="text-muted-foreground mb-4">
-                        {selectedEvent ? "Commencez par ajouter des tables à votre plan de salle" : "Sélectionnez un événement pour commencer"}
-                      </p>
-                      {selectedEvent && (
-                        <Button onClick={addTable} className="bg-gradient-primary">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Ajouter une table
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Entrance */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-green-500/20 text-green-400 px-6 py-2 rounded border-2 border-green-500/30">
-                  🚪 ENTRÉE
-                </div>
-              </div>
+            <CardContent className="p-4">
+              <FloorPlanCanvas
+                elements={elements}
+                selectedEvent={selectedEvent}
+                editMode={editMode}
+                onElementMove={handleElementMove}
+                onElementDelete={handleElementDelete}
+                onElementClick={handleElementClick}
+                onCanvasDrop={handleCanvasDrop}
+              />
             </CardContent>
           </Card>
         </div>
 
-        {/* Table Details Panel */}
+        {/* Sidebar Panel */}
         <div className="space-y-4">
-          <Card className="bg-card/50 backdrop-blur-sm border-border/50">
-            <CardHeader>
-              <CardTitle className="text-lg">Statut des tables</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gradient-primary rounded"></div>
-                  <span className="text-sm">VIP Occupée</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-primary/20 border-2 border-primary rounded"></div>
-                  <span className="text-sm">VIP Réservée</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-accent/80 rounded"></div>
-                  <span className="text-sm">Standard Occupée</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-secondary border border-border rounded"></div>
-                  <span className="text-sm">Libre</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ElementPalette editMode={editMode} />
 
           <Card className="bg-card/50 backdrop-blur-sm border-border/50">
             <CardHeader>
-              <CardTitle className="text-lg">Statistiques</CardTitle>
+              <CardTitle className="text-lg">Statistiques du plan</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm">
-                    <span>Tables occupées</span>
-                    <span className="font-bold">
-                      {tables.filter(t => t.etat === 'occupee').length}/{tables.length}
+                    <span>Éléments total</span>
+                    <span className="font-bold text-primary">
+                      {elements.length}
                     </span>
                   </div>
-                  <div className="w-full bg-secondary rounded-full h-2 mt-1">
-                    <div 
-                      className="bg-gradient-primary h-2 rounded-full" 
-                      style={{ 
-                        width: tables.length > 0 ? `${(tables.filter(t => t.etat === 'occupee').length / tables.length) * 100}%` : "0%" 
-                      }}
-                    ></div>
-                  </div>
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between text-sm">
-                    <span>Taux de remplissage</span>
-                    <span className="font-bold text-primary">
-                      {tables.length > 0 ? Math.round((tables.filter(t => t.etat === 'occupee').length / tables.length) * 100) : 0}%
+                    <span>Tables configurées</span>
+                    <span className="font-bold">
+                      {getTableStats().total}
                     </span>
                   </div>
                 </div>
@@ -337,7 +317,7 @@ export default function FloorPlan() {
                   <div className="flex justify-between text-sm">
                     <span>Min spend total</span>
                     <span className="font-bold text-accent">
-                      €{tables.reduce((sum, table) => sum + Number(table.min_spend || 0), 0)}
+                      €{getTableStats().totalMinSpend}
                     </span>
                   </div>
                 </div>
@@ -353,17 +333,24 @@ export default function FloorPlan() {
               <div className="space-y-2">
                 <Button variant="outline" size="sm" className="w-full justify-start">
                   <Eye className="w-4 h-4 mr-2" />
-                  Vue 3D (bientôt)
+                  Vue client (bientôt)
                 </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start">
                   <Settings className="w-4 h-4 mr-2" />
-                  Paramètres
+                  Paramètres du plan
                 </Button>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <TableConfigDialog
+        element={configDialog.element}
+        open={configDialog.open}
+        onOpenChange={(open) => setConfigDialog({ ...configDialog, open })}
+        onSave={handleElementSave}
+      />
     </div>
   );
 }

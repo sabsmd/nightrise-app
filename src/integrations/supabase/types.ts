@@ -56,6 +56,48 @@ export type Database = {
         }
         Relationships: []
       }
+      floor_elements: {
+        Row: {
+          config: Json | null
+          created_at: string
+          event_id: string
+          height: number
+          id: string
+          nom: string
+          position_x: number
+          position_y: number
+          type: string
+          updated_at: string
+          width: number
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          event_id: string
+          height?: number
+          id?: string
+          nom: string
+          position_x?: number
+          position_y?: number
+          type: string
+          updated_at?: string
+          width?: number
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          event_id?: string
+          height?: number
+          id?: string
+          nom?: string
+          position_x?: number
+          position_y?: number
+          type?: string
+          updated_at?: string
+          width?: number
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -241,9 +283,11 @@ export type Database = {
       }
       tables: {
         Row: {
+          capacite: number | null
           created_at: string
           etat: Database["public"]["Enums"]["table_state"]
           event_id: string
+          floor_element_id: string | null
           id: string
           min_spend: number
           nom: string
@@ -252,9 +296,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          capacite?: number | null
           created_at?: string
           etat?: Database["public"]["Enums"]["table_state"]
           event_id: string
+          floor_element_id?: string | null
           id?: string
           min_spend?: number
           nom: string
@@ -263,9 +309,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          capacite?: number | null
           created_at?: string
           etat?: Database["public"]["Enums"]["table_state"]
           event_id?: string
+          floor_element_id?: string | null
           id?: string
           min_spend?: number
           nom?: string
