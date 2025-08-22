@@ -4,39 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Plus,
-  Calendar,
-  MapPin,
-  Users,
-  Edit,
-  Trash2,
-  Search,
-  Filter,
-  Upload,
-  Music
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Calendar, MapPin, Users, Edit, Trash2, Search, Filter, Upload, Music } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-
 export default function Events() {
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,21 +30,20 @@ export default function Events() {
     image_file: null as File | null
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     if (user) {
       loadEvents();
     }
   }, [user]);
-
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('date', { ascending: true });
-
+      const {
+        data,
+        error
+      } = await supabase.from('events').select('*').order('date', {
+        ascending: true
+      });
       if (error) throw error;
       setEvents(data || []);
     } catch (error) {
@@ -77,7 +53,6 @@ export default function Events() {
       setLoading(false);
     }
   };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -86,17 +61,18 @@ export default function Events() {
         toast.error('La taille du fichier ne doit pas dépasser 5MB');
         return;
       }
-      
+
       // Vérifier le format
       if (!['image/jpeg', 'image/png'].includes(file.type)) {
         toast.error('Seuls les formats JPEG et PNG sont acceptés');
         return;
       }
-      
-      setNewEvent({ ...newEvent, image_file: file });
+      setNewEvent({
+        ...newEvent,
+        image_file: file
+      });
     }
   };
-
   const resetForm = () => {
     setNewEvent({
       titre: "",
@@ -110,7 +86,6 @@ export default function Events() {
     });
     setEditingEvent(null);
   };
-
   const createOrUpdateEvent = async () => {
     try {
       if (!newEvent.titre || !newEvent.date || !newEvent.lieu) {
@@ -128,21 +103,17 @@ export default function Events() {
         type_evenement: newEvent.type_evenement || null,
         artiste_dj: newEvent.artiste_dj || null
       };
-
       let error;
       if (editingEvent) {
-        ({ error } = await supabase
-          .from('events')
-          .update(eventData)
-          .eq('id', editingEvent.id));
+        ({
+          error
+        } = await supabase.from('events').update(eventData).eq('id', editingEvent.id));
       } else {
-        ({ error } = await supabase
-          .from('events')
-          .insert([eventData]));
+        ({
+          error
+        } = await supabase.from('events').insert([eventData]));
       }
-
       if (error) throw error;
-
       toast.success(editingEvent ? 'Événement modifié avec succès !' : 'Événement créé avec succès !');
       setIsDialogOpen(false);
       resetForm();
@@ -155,7 +126,6 @@ export default function Events() {
       toast.error('Erreur lors de la sauvegarde de l\'événement');
     }
   };
-
   const startEdit = (event: any) => {
     setEditingEvent(event);
     setNewEvent({
@@ -170,16 +140,12 @@ export default function Events() {
     });
     setIsDialogOpen(true);
   };
-
   const deleteEvent = async (eventId: string) => {
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
-
+      const {
+        error
+      } = await supabase.from('events').delete().eq('id', eventId);
       if (error) throw error;
-
       toast.success('Événement supprimé avec succès !');
       loadEvents();
     } catch (error) {
@@ -187,23 +153,20 @@ export default function Events() {
       toast.error('Erreur lors de la suppression de l\'événement');
     }
   };
-
-  const filteredEvents = events.filter(event =>
-    event.titre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.lieu.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
+  const filteredEvents = events.filter(event => event.titre.toLowerCase().includes(searchQuery.toLowerCase()) || event.lieu.toLowerCase().includes(searchQuery.toLowerCase()));
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "En cours": return "bg-accent text-accent-foreground";
-      case "Confirmé": return "bg-primary text-primary-foreground";
-      case "Préparation": return "bg-orange-500 text-white";
-      default: return "bg-secondary text-secondary-foreground";
+      case "En cours":
+        return "bg-accent text-accent-foreground";
+      case "Confirmé":
+        return "bg-primary text-primary-foreground";
+      case "Préparation":
+        return "bg-orange-500 text-white";
+      default:
+        return "bg-secondary text-secondary-foreground";
     }
   };
-
-  return (
-    <div className="p-6 space-y-6">
+  return <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -211,10 +174,10 @@ export default function Events() {
           <p className="text-muted-foreground">Créez et gérez vos soirées et événements spéciaux</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
+        <Dialog open={isDialogOpen} onOpenChange={open => {
+        setIsDialogOpen(open);
+        if (!open) resetForm();
+      }}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90 shadow-glow">
               <Plus className="w-4 h-4 mr-2" />
@@ -233,20 +196,18 @@ export default function Events() {
             <div className="space-y-4 py-4">
               <div>
                 <label className="text-sm font-medium">Titre de l'événement *</label>
-                <Input 
-                  placeholder="Ex: Pool Party VIP Summer" 
-                  className="mt-1"
-                  value={newEvent.titre}
-                  onChange={(e) => setNewEvent({...newEvent, titre: e.target.value})}
-                />
+                <Input placeholder="Ex: Pool Party VIP Summer" className="mt-1" value={newEvent.titre} onChange={e => setNewEvent({
+                ...newEvent,
+                titre: e.target.value
+              })} />
               </div>
               
               <div>
                 <label className="text-sm font-medium">Type d'événement</label>
-                <Select 
-                  value={newEvent.type_evenement} 
-                  onValueChange={(value) => setNewEvent({...newEvent, type_evenement: value})}
-                >
+                <Select value={newEvent.type_evenement} onValueChange={value => setNewEvent({
+                ...newEvent,
+                type_evenement: value
+              })}>
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Sélectionner le type d'événement" />
                   </SelectTrigger>
@@ -262,89 +223,57 @@ export default function Events() {
                 <label className="text-sm font-medium">Artiste / DJ</label>
                 <div className="relative">
                   <Music className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input 
-                    placeholder="Ex: DJ Snake, Martin Garrix..." 
-                    className="mt-1 pl-10"
-                    value={newEvent.artiste_dj}
-                    onChange={(e) => setNewEvent({...newEvent, artiste_dj: e.target.value})}
-                  />
+                  <Input placeholder="Ex: DJ Snake, Martin Garrix..." className="mt-1 pl-10" value={newEvent.artiste_dj} onChange={e => setNewEvent({
+                  ...newEvent,
+                  artiste_dj: e.target.value
+                })} />
                 </div>
               </div>
               
               <div>
                 <label className="text-sm font-medium">Description</label>
-                <Textarea 
-                  placeholder="Description de l'événement" 
-                  className="mt-1"
-                  value={newEvent.description}
-                  onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
-                />
+                <Textarea placeholder="Description de l'événement" className="mt-1" value={newEvent.description} onChange={e => setNewEvent({
+                ...newEvent,
+                description: e.target.value
+              })} />
               </div>
               
               <div>
                 <label className="text-sm font-medium">Date *</label>
-                <Input 
-                  type="date" 
-                  className="mt-1"
-                  value={newEvent.date}
-                  onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
-                />
+                <Input type="date" className="mt-1" value={newEvent.date} onChange={e => setNewEvent({
+                ...newEvent,
+                date: e.target.value
+              })} />
               </div>
               
               <div>
                 <label className="text-sm font-medium">Lieu *</label>
-                <Input 
-                  placeholder="Ex: Terrasse VIP" 
-                  className="mt-1"
-                  value={newEvent.lieu}
-                  onChange={(e) => setNewEvent({...newEvent, lieu: e.target.value})}
-                />
+                <Input placeholder="Ex: Terrasse VIP" className="mt-1" value={newEvent.lieu} onChange={e => setNewEvent({
+                ...newEvent,
+                lieu: e.target.value
+              })} />
               </div>
 
               <div>
                 <label className="text-sm font-medium">Photo de l'événement</label>
                 <div className="mt-1 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex-1"
-                    >
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="flex-1">
                       <Upload className="w-4 h-4 mr-2" />
                       {newEvent.image_file ? 'Changer la photo' : 'Télécharger une photo'}
                     </Button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      accept="image/jpeg,image/png"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
+                    <input type="file" ref={fileInputRef} accept="image/jpeg,image/png" onChange={handleFileChange} className="hidden" />
                   </div>
-                  {newEvent.image_file && (
-                    <p className="text-xs text-muted-foreground">
+                  {newEvent.image_file && <p className="text-xs text-muted-foreground">
                       Fichier sélectionné: {newEvent.image_file.name}
-                    </p>
-                  )}
+                    </p>}
                   <p className="text-xs text-muted-foreground">
                     Formats acceptés: JPEG, PNG • Taille max: 5MB
                   </p>
                 </div>
               </div>
               
-              <div>
-                <label className="text-sm font-medium">Image (URL) - Alternative</label>
-                <Input 
-                  placeholder="https://..." 
-                  className="mt-1"
-                  value={newEvent.image}
-                  onChange={(e) => setNewEvent({...newEvent, image: e.target.value})}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Utilisez soit le téléchargement de fichier, soit l'URL d'image
-                </p>
-              </div>
+              
               
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -363,12 +292,7 @@ export default function Events() {
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Rechercher un événement..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Rechercher un événement..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10" />
         </div>
         <Button variant="outline" size="sm">
           <Filter className="w-4 h-4 mr-2" />
@@ -378,20 +302,11 @@ export default function Events() {
 
       {/* Events Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredEvents.map((event) => (
-          <Card key={event.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/70 transition-all duration-300 group">
+        {filteredEvents.map(event => <Card key={event.id} className="bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/70 transition-all duration-300 group">
             <div className="relative">
-              {event.image ? (
-                <img 
-                  src={event.image} 
-                  alt={event.titre}
-                  className="h-48 w-full object-cover rounded-t-lg"
-                />
-              ) : (
-                <div className="h-48 bg-gradient-secondary rounded-t-lg flex items-center justify-center">
+              {event.image ? <img src={event.image} alt={event.titre} className="h-48 w-full object-cover rounded-t-lg" /> : <div className="h-48 bg-gradient-secondary rounded-t-lg flex items-center justify-center">
                   <Calendar className="w-16 h-16 text-primary opacity-50" />
-                </div>
-              )}
+                </div>}
               <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
                 Programmé
               </Badge>
@@ -401,18 +316,13 @@ export default function Events() {
               <CardTitle className="text-lg font-bold text-foreground line-clamp-1">
                 {event.titre}
               </CardTitle>
-              {event.type_evenement && (
-                <Badge variant="outline" className="w-fit mb-2">
-                  {event.type_evenement === 'Pool Party' ? '🏊' : 
-                   event.type_evenement === 'Boite de nuit' ? '🕺' : '🏢'} {event.type_evenement}
-                </Badge>
-              )}
-              {event.artiste_dj && (
-                <div className="flex items-center gap-2 mb-2">
+              {event.type_evenement && <Badge variant="outline" className="w-fit mb-2">
+                  {event.type_evenement === 'Pool Party' ? '🏊' : event.type_evenement === 'Boite de nuit' ? '🕺' : '🏢'} {event.type_evenement}
+                </Badge>}
+              {event.artiste_dj && <div className="flex items-center gap-2 mb-2">
                   <Music className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-primary">{event.artiste_dj}</span>
-                </div>
-              )}
+                </div>}
               <p className="text-sm text-muted-foreground line-clamp-2">
                 {event.description || "Aucune description"}
               </p>
@@ -431,33 +341,21 @@ export default function Events() {
                 </div>
                 
                 <div className="flex items-center gap-2 pt-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1 hover:bg-secondary"
-                    onClick={() => startEdit(event)}
-                  >
+                  <Button variant="outline" size="sm" className="flex-1 hover:bg-secondary" onClick={() => startEdit(event)}>
                     <Edit className="w-4 h-4 mr-1" />
                     Modifier
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => deleteEvent(event.id)}
-                  >
+                  <Button variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground" onClick={() => deleteEvent(event.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
             </CardContent>
-          </Card>
-        ))}
+          </Card>)}
       </div>
 
       {/* Empty State */}
-      {!loading && filteredEvents.length === 0 && (
-        <div className="text-center py-12">
+      {!loading && filteredEvents.length === 0 && <div className="text-center py-12">
           <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">
             {events.length === 0 ? "Aucun événement créé" : "Aucun événement trouvé"}
@@ -465,14 +363,10 @@ export default function Events() {
           <p className="text-muted-foreground mb-4">
             {events.length === 0 ? "Créez votre premier événement pour commencer" : "Essayez avec d'autres termes de recherche"}
           </p>
-          {events.length === 0 && (
-            <Button className="bg-gradient-primary" onClick={() => setIsDialogOpen(true)}>
+          {events.length === 0 && <Button className="bg-gradient-primary" onClick={() => setIsDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Créer un événement
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
+            </Button>}
+        </div>}
+    </div>;
 }
