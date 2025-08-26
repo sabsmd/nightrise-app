@@ -25,13 +25,17 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
 
     setLoading(true);
     try {
+      console.log('Validating code:', code.trim().toUpperCase());
       const wallet = await WalletService.getWallet(code.trim().toUpperCase());
       
       if (!wallet) {
+        console.log('No wallet found for code');
         toast.error('Code incorrect ou inexistant');
+        setLoading(false);
         return;
       }
 
+      console.log('Wallet found:', wallet);
       if (wallet.status !== 'active') {
         const statusMessages = {
           expired: 'Ce code a expiré',
@@ -39,15 +43,16 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
           closed: 'Ce code a été fermé'
         };
         toast.error(statusMessages[wallet.status as keyof typeof statusMessages] || 'Code non valide');
+        setLoading(false);
         return;
       }
 
       setValidatedWallet(wallet);
       toast.success('Code validé avec succès !');
+      setLoading(false);
     } catch (error) {
       console.error('Error validating code:', error);
       toast.error('Erreur lors de la validation du code');
-    } finally {
       setLoading(false);
     }
   };

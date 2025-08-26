@@ -245,14 +245,57 @@ export class WalletService {
   // Migration helper: Convert old min_spend_codes to new wallet format
   static async migrateMinSpendCode(minSpendCode: any): Promise<WalletData> {
     try {
-      // Check if wallet already exists
-      try {
-        const existing = await this.getWallet(minSpendCode.code);
-        if (existing) {
-          return existing;
+      // Check if wallet already exists (direct query to avoid recursion)
+      const { data: existingWallet } = await supabase
+        .from('min_spend_wallets')
+        .select('id')
+        .eq('code', minSpendCode.code)
+        .single();
+
+      if (existingWallet) {
+        // Wallet exists, fetch it with full data using direct query
+        const { data: wallet, error } = await supabase
+          .from('min_spend_wallets')
+          .select(`
+            *,
+            transactions:min_spend_transactions(
+              id,
+              type,
+              amount,
+              order_id,
+              source,
+              notes,
+              created_at
+            )
+          `)
+          .eq('code', minSpendCode.code)
+          .single();
+
+        if (wallet && !error) {
+          const progress = wallet.initial_credit > 0 
+            ? ((wallet.initial_credit - wallet.remaining_credit) / wallet.initial_credit) * 100 
+            : 0;
+
+          return {
+            id: wallet.id,
+            code: wallet.code,
+            status: wallet.status as 'active' | 'suspended' | 'closed' | 'expired',
+            currency: wallet.currency,
+            initialCredit: Number(wallet.initial_credit),
+            remainingCredit: Number(wallet.remaining_credit),
+            progress,
+            expiresAt: wallet.expires_at,
+            history: wallet.transactions?.map((t: any) => ({
+              id: t.id,
+              type: t.type,
+              amount: Number(t.amount),
+              orderId: t.order_id,
+              source: t.source,
+              notes: t.notes,
+              createdAt: t.created_at
+            })) || []
+          };
         }
-      } catch (error) {
-        // Wallet doesn't exist, continue with migration
       }
 
       // Create new wallet from old min_spend_code
