@@ -99,7 +99,7 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-black;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
