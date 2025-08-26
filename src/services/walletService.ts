@@ -43,26 +43,102 @@ export interface CreateWalletData {
 export class WalletService {
   static async getWallet(code: string): Promise<WalletData | null> {
     try {
-      const { data, error } = await supabase.functions.invoke('wallet-get', {
-        body: { code }
-      });
+      // First, try to get wallet from new system
+      const { data: wallet, error: walletError } = await supabase
+        .from('min_spend_wallets')
+        .select(`
+          *,
+          transactions:min_spend_transactions(
+            id,
+            type,
+            amount,
+            order_id,
+            source,
+            notes,
+            created_at
+          )
+        `)
+        .eq('code', code)
+        .single();
 
-      if (error) throw error;
-      return data;
+      if (wallet && !walletError) {
+        const progress = wallet.initial_credit > 0 
+          ? ((wallet.initial_credit - wallet.remaining_credit) / wallet.initial_credit) * 100 
+          : 0;
+
+        return {
+          id: wallet.id,
+          code: wallet.code,
+          status: wallet.status as 'active' | 'suspended' | 'closed' | 'expired',
+          currency: wallet.currency,
+          initialCredit: Number(wallet.initial_credit),
+          remainingCredit: Number(wallet.remaining_credit),
+          progress,
+          expiresAt: wallet.expires_at,
+          history: wallet.transactions?.map((t: any) => ({
+            id: t.id,
+            type: t.type,
+            amount: Number(t.amount),
+            orderId: t.order_id,
+            source: t.source,
+            notes: t.notes,
+            createdAt: t.created_at
+          })) || []
+        };
+      }
+
+      // If not found in wallets, try to find and migrate from old min_spend_codes
+      const { data: minSpendCode, error: codeError } = await supabase
+        .from('min_spend_codes')
+        .select(`
+          *,
+          floor_element:floor_elements(id, nom, type)
+        `)
+        .eq('code', code)
+        .single();
+
+      if (minSpendCode && !codeError) {
+        console.log('Found old min_spend_code, migrating to wallet...');
+        return await this.migrateMinSpendCode(minSpendCode);
+      }
+
+      return null;
     } catch (error) {
       console.error('Error fetching wallet:', error);
-      throw error;
+      return null;
     }
   }
 
   static async createWallet(walletData: CreateWalletData): Promise<WalletData> {
     try {
-      const { data, error } = await supabase.functions.invoke('wallet-create', {
-        body: walletData
-      });
+      const { data: wallet, error } = await supabase
+        .from('min_spend_wallets')
+        .insert({
+          code: walletData.code,
+          initial_credit: walletData.initialCredit,
+          remaining_credit: walletData.initialCredit,
+          currency: walletData.currency || 'EUR',
+          expires_at: walletData.expiresAt,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single();
 
       if (error) throw error;
-      return data;
+
+      return {
+        id: wallet.id,
+        code: wallet.code,
+        status: wallet.status as 'active' | 'suspended' | 'closed' | 'expired',
+        currency: wallet.currency,
+        initialCredit: Number(wallet.initial_credit),
+        remainingCredit: Number(wallet.remaining_credit),
+        progress: 0,
+        expiresAt: wallet.expires_at,
+        history: [],
+        clientName: walletData.clientName,
+        clientPhone: walletData.clientPhone
+      };
     } catch (error) {
       console.error('Error creating wallet:', error);
       throw error;
@@ -77,18 +153,23 @@ export class WalletService {
     idempotencyKey?: string
   ): Promise<WalletData> {
     try {
-      const { data, error } = await supabase.functions.invoke('wallet-debit', {
-        body: {
-          code,
-          amount,
-          orderId,
-          source,
-          idempotencyKey
-        }
+      const { data, error } = await supabase.rpc('debit_wallet', {
+        p_code: code,
+        p_amount: amount,
+        p_order_id: orderId,
+        p_source: source,
+        p_idempotency_key: idempotencyKey
       });
 
       if (error) throw error;
-      return data;
+
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to debit wallet');
+      }
+
+      // Fetch updated wallet data
+      return await this.getWallet(code) as WalletData;
     } catch (error) {
       console.error('Error debiting wallet:', error);
       throw error;
@@ -105,20 +186,25 @@ export class WalletService {
     notes?: string
   ): Promise<WalletData> {
     try {
-      const { data, error } = await supabase.functions.invoke('wallet-credit', {
-        body: {
-          code,
-          amount,
-          type,
-          orderId,
-          source,
-          idempotencyKey,
-          notes
-        }
+      const { data, error } = await supabase.rpc('credit_wallet', {
+        p_code: code,
+        p_amount: amount,
+        p_type: type,
+        p_order_id: orderId,
+        p_source: source,
+        p_idempotency_key: idempotencyKey,
+        p_notes: notes
       });
 
       if (error) throw error;
-      return data;
+
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to credit wallet');
+      }
+
+      // Fetch updated wallet data
+      return await this.getWallet(code) as WalletData;
     } catch (error) {
       console.error('Error crediting wallet:', error);
       throw error;
@@ -131,16 +217,25 @@ export class WalletService {
     expiresAt?: string
   ): Promise<WalletData> {
     try {
-      const { data, error } = await supabase.functions.invoke('wallet-update', {
-        body: {
-          code,
-          status,
-          expiresAt
-        }
-      });
+      const updateData: any = { 
+        status,
+        updated_at: new Date().toISOString(),
+        updated_by: (await supabase.auth.getUser()).data.user?.id
+      };
+      
+      if (expiresAt) {
+        updateData.expires_at = expiresAt;
+      }
+
+      const { error } = await supabase
+        .from('min_spend_wallets')
+        .update(updateData)
+        .eq('code', code);
 
       if (error) throw error;
-      return data;
+
+      // Fetch updated wallet data
+      return await this.getWallet(code) as WalletData;
     } catch (error) {
       console.error('Error updating wallet:', error);
       throw error;
