@@ -174,6 +174,95 @@ export type Database = {
           },
         ]
       }
+      min_spend_transactions: {
+        Row: {
+          amount: number
+          code: string
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          order_id: string | null
+          source: string
+          type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          code: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          order_id?: string | null
+          source?: string
+          type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          order_id?: string | null
+          source?: string
+          type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "min_spend_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "min_spend_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      min_spend_wallets: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          expires_at: string | null
+          id: string
+          initial_credit: number
+          remaining_credit: number
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          initial_credit: number
+          remaining_credit: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          initial_credit?: number
+          remaining_credit?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -502,6 +591,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      credit_wallet: {
+        Args: {
+          p_amount: number
+          p_code: string
+          p_idempotency_key?: string
+          p_notes?: string
+          p_order_id?: string
+          p_source?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
+      debit_wallet: {
+        Args: {
+          p_amount: number
+          p_code: string
+          p_idempotency_key?: string
+          p_notes?: string
+          p_order_id?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
