@@ -104,7 +104,7 @@ export default function Client() {
               <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">🎉</span>
               </div>
-              <span className="font-bold text-lg gradient-text">ClubManager</span>
+              <span className="font-bold text-lg text-black">TABLE</span>
             </div>
 
             {/* Desktop Navigation */}
@@ -275,10 +275,10 @@ export default function Client() {
             <div className="w-6 h-6 bg-gradient-primary rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-xs">🎉</span>
             </div>
-            <span className="font-bold gradient-text">ClubManager</span>
+            <span className="font-bold text-black">TABLE</span>
           </div>
           <p className="text-muted-foreground text-sm">
-            © 2024 ClubManager - Interface Client
+            © 2024 TABLE - Interface Client
           </p>
           <p className="text-muted-foreground text-xs mt-2">
             Découvrez et réservez les meilleurs événements près de chez vous
