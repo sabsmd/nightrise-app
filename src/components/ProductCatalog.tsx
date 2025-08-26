@@ -42,17 +42,17 @@ interface Order {
 interface ProductCatalogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  validatedCode: any;
+  wallet: any;
   eventId: string;
-  reservationId: string;
+  onWalletUpdated: () => void;
 }
 
 export default function ProductCatalog({ 
   open, 
   onOpenChange, 
-  validatedCode, 
+  wallet, 
   eventId, 
-  reservationId 
+  onWalletUpdated 
 }: ProductCatalogProps) {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -114,37 +114,27 @@ export default function ProductCatalog({
   };
 
   const loadOrders = async () => {
-    if (!user || !eventId) return;
+    if (!user || !eventId || !wallet) return;
 
     try {
-      // Get table_id from reservation
-      const { data: reservationData, error: reservationError } = await supabase
-        .from('reservations')
-        .select('floor_element_id')
-        .eq('id', reservationId)
-        .single();
+      // For now, skip the reservation lookup and just load orders for the user/event
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items(
+            product_id,
+            quantite,
+            prix_unitaire,
+            products(nom, categorie)
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
 
-      if (reservationError) throw reservationError;
-
-          // Get orders for this user/event/table
-          const { data, error } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              order_items(
-                product_id,
-                quantite,
-                prix_unitaire,
-                products(nom, categorie)
-              )
-            `)
-            .eq('user_id', user.id)
-            .eq('event_id', eventId)
-            .eq('table_id', reservationData.floor_element_id)
-            .order('created_at', { ascending: false });
-
-          if (error) throw error;
-          setOrders((data || []) as Order[]);
+      if (error) throw error;
+      setOrders((data || []) as Order[]);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
@@ -184,72 +174,35 @@ export default function ProductCatalog({
       return;
     }
 
-    if (!user || !validatedCode) {
+    if (!user || !wallet) {
       toast.error('Erreur d\'authentification');
       return;
     }
 
     const total = getCartTotal();
-    if (total > validatedCode.solde_restant) {
+    if (total > wallet.remainingCredit) {
       toast.error('Montant supérieur au solde restant');
       return;
     }
 
     setOrderLoading(true);
     try {
-      // Get table_id from reservation
-      const { data: reservationData, error: reservationError } = await supabase
-        .from('reservations')
-        .select('floor_element_id')
-        .eq('id', reservationId)
-        .single();
+      // Use wallet API to debit the amount
+      const { data, error } = await supabase.functions.invoke('wallet-debit', {
+        body: {
+          code: wallet.code,
+          amount: total,
+          source: 'app',
+          idempotencyKey: `order-${Date.now()}-${user.id}`
+        }
+      });
 
-      if (reservationError) throw reservationError;
-
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          event_id: eventId,
-          table_id: reservationData.floor_element_id,
-          montant_total: total,
-          statut: 'pending'
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items
-      const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.product.id,
-        quantite: item.quantity,
-        prix_unitaire: item.product.prix
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      // Update min_spend_code balance
-      const newBalance = validatedCode.solde_restant - total;
-      const { error: balanceError } = await supabase
-        .from('min_spend_codes')
-        .update({ solde_restant: newBalance })
-        .eq('id', validatedCode.id);
-
-      if (balanceError) throw balanceError;
+      if (error) throw error;
 
       toast.success('Commande passée avec succès !');
       setCart([]);
       loadOrders();
-      
-      // Refresh the validated code
-      window.location.reload();
+      onWalletUpdated();
     } catch (error: any) {
       console.error('Error submitting order:', error);
       toast.error('Erreur lors de la commande');
@@ -259,9 +212,9 @@ export default function ProductCatalog({
   };
 
   const getProgressPercentage = () => {
-    if (!validatedCode || validatedCode.min_spend === 0) return 0;
-    const consumed = validatedCode.min_spend - validatedCode.solde_restant;
-    return Math.min((consumed / validatedCode.min_spend) * 100, 100);
+    if (!wallet || wallet.initialCredit === 0) return 0;
+    const consumed = wallet.initialCredit - wallet.remainingCredit;
+    return Math.min((consumed / wallet.initialCredit) * 100, 100);
   };
 
   const formatCurrency = (amount: number) => `€${amount.toFixed(2)}`;
@@ -303,13 +256,13 @@ export default function ProductCatalog({
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium">Progression minimum spend</span>
               <span className="text-sm text-muted-foreground">
-                {formatCurrency(validatedCode.min_spend - validatedCode.solde_restant)} / {formatCurrency(validatedCode.min_spend)}
+                {formatCurrency(wallet.initialCredit - wallet.remainingCredit)} / {formatCurrency(wallet.initialCredit)}
               </span>
             </div>
             <Progress value={getProgressPercentage()} className="h-2" />
             <div className="flex justify-between mt-2 text-sm">
               <span className="text-muted-foreground">
-                Solde restant: <span className="font-bold text-foreground">{formatCurrency(validatedCode.solde_restant)}</span>
+                Solde restant: <span className="font-bold text-foreground">{formatCurrency(wallet.remainingCredit)}</span>
               </span>
               {getProgressPercentage() >= 100 && (
                 <div className="flex items-center gap-1 text-green-600">
@@ -363,7 +316,7 @@ export default function ProductCatalog({
                                 onClick={() => addToCart(product)}
                                 className="w-full"
                                 size="sm"
-                                disabled={product.prix > validatedCode.solde_restant}
+                                disabled={product.prix > wallet.remainingCredit}
                               >
                                 <Plus className="w-4 h-4 mr-2" />
                                 Ajouter au panier
@@ -409,7 +362,7 @@ export default function ProductCatalog({
                           size="sm"
                           variant="outline"
                           onClick={() => addToCart(item.product)}
-                          disabled={item.product.prix > validatedCode.solde_restant - getCartTotal() + (item.product.prix * item.quantity)}
+                          disabled={item.product.prix > wallet.remainingCredit - getCartTotal() + (item.product.prix * item.quantity)}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
@@ -420,7 +373,7 @@ export default function ProductCatalog({
                   <div className="border-t pt-4">
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-lg font-semibold">Total: {formatCurrency(getCartTotal())}</span>
-                      {getCartTotal() > validatedCode.solde_restant && (
+                      {getCartTotal() > wallet.remainingCredit && (
                         <div className="flex items-center gap-1 text-destructive">
                           <AlertCircle className="w-4 h-4" />
                           <span className="text-sm">Solde insuffisant</span>
@@ -429,7 +382,7 @@ export default function ProductCatalog({
                     </div>
                     <Button 
                       onClick={submitOrder}
-                      disabled={orderLoading || getCartTotal() > validatedCode.solde_restant || cart.length === 0}
+                      disabled={orderLoading || getCartTotal() > wallet.remainingCredit || cart.length === 0}
                       className="w-full"
                     >
                       {orderLoading ? 'Commande en cours...' : 'Passer la commande'}

@@ -188,9 +188,9 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated, onRese
             <ProductCatalog
               open={showCatalog}
               onOpenChange={setShowCatalog}
-              validatedCode={validatedCode}
+              wallet={validatedCode}
               eventId={eventId}
-              reservationId={userReservation.id}
+              onWalletUpdated={() => {}}
             />
           )}
         </CardContent>

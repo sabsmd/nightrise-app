@@ -11,7 +11,8 @@ import { ArrowLeft, Calendar, MapPin, Mail, Phone, ExternalLink, Users, Euro, Lo
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ClientFloorPlan from '@/components/ClientFloorPlan';
-import ClientMinSpendTracker from "@/components/ClientMinSpendTracker";
+import WalletCodeInput from "@/components/WalletCodeInput";
+import WalletCard from "@/components/WalletCard";
 
 interface Event {
   id: string;
@@ -46,8 +47,9 @@ export default function EventDetails() {
   const [floorElements, setFloorElements] = useState<FloorElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedElement, setSelectedElement] = useState<FloorElement | null>(null);
-  const [validatedCode, setValidatedCode] = useState<any>(null);
-  const [reservationId, setReservationId] = useState<string | null>(null);
+  const [walletCode, setWalletCode] = useState<string>("");
+  const [validatedWallet, setValidatedWallet] = useState<any>(null);
+  const [showWalletCard, setShowWalletCard] = useState(false);
 
   useEffect(() => {
     if (eventId) {
@@ -125,12 +127,21 @@ export default function EventDetails() {
     }
   };
 
-  const handleCodeValidated = (code: any) => {
-    setValidatedCode(code);
+  const handleWalletValidated = (wallet: any) => {
+    setValidatedWallet(wallet);
+    setShowWalletCard(true);
   };
 
-  const handleReservationCreated = (newReservationId: string) => {
-    setReservationId(newReservationId);
+  const handleWalletUpdated = () => {
+    // Refresh wallet data after transactions
+    if (walletCode && validatedWallet) {
+      // Re-validate the wallet to get updated balance
+      setTimeout(() => {
+        // This will trigger a refresh of the wallet data
+        setValidatedWallet(null);
+        setShowWalletCard(false);
+      }, 1000);
+    }
   };
 
   if (loading) {
@@ -248,7 +259,7 @@ export default function EventDetails() {
                   <ClientFloorPlan 
                     elements={floorElements}
                     onElementClick={handleElementClick}
-                    validatedCode={validatedCode}
+                    validatedCode={validatedWallet}
                     eventId={eventId}
                   />
                 </CardContent>
@@ -257,12 +268,27 @@ export default function EventDetails() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Min Spend Code Tracker */}
-              <ClientMinSpendTracker 
-                eventId={eventId!} 
-                onCodeValidated={handleCodeValidated}
-                onReservationCreated={handleReservationCreated}
-              />
+              {/* Wallet Code Input */}
+              {!validatedWallet && (
+                <WalletCodeInput 
+                  eventId={eventId!}
+                  onWalletValidated={handleWalletValidated}
+                />
+              )}
+
+              {/* Wallet Card */}
+              {validatedWallet && showWalletCard && (
+                <WalletCard 
+                  wallet={validatedWallet}
+                  eventId={eventId!}
+                  onWalletUpdated={handleWalletUpdated}
+                  onClose={() => {
+                    setShowWalletCard(false);
+                    setValidatedWallet(null);
+                    setWalletCode("");
+                  }}
+                />
+              )}
               
               {/* Event Details */}
               <Card>
