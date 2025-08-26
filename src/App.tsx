@@ -44,6 +44,7 @@ const App = () => (
               <Route path="events" element={<Events />} />
               <Route path="events/:eventId" element={<ProEventDetails />} />
               <Route path="min-spend-codes" element={<MinSpendCodes />} />
+              <Route path="wallets" element={<MinSpendCodes />} />
               <Route path="floor-plan" element={<FloorPlan />} />
               <Route path="products" element={<Products />} />
               <Route path="users" element={<Dashboard />} />

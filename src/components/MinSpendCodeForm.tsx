@@ -77,6 +77,7 @@ export default function MinSpendCodeForm({ eventId, onCodeCreated }: MinSpendCod
 
       const code = generateUniqueCode();
       
+      // Create in legacy table for compatibility
       const codeData = {
         event_id: eventId,
         floor_element_id: newCode.floor_element_id || null,
