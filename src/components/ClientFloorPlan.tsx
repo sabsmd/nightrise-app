@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { ReservationService } from "@/services/reservationService";
+import ReservationDialog from "./ReservationDialog";
 
 export interface FloorElement {
   id: string;
@@ -27,20 +28,18 @@ interface ClientReservation {
 
 interface ClientFloorPlanProps {
   elements: FloorElement[];
-  onElementClick: (element: FloorElement) => void;
-  validatedCode?: any;
   eventId?: string;
 }
 
 export default function ClientFloorPlan({ 
   elements, 
-  onElementClick, 
-  validatedCode,
   eventId
 }: ClientFloorPlanProps) {
   const { user } = useAuth();
   const [reservations, setReservations] = useState<ClientReservation[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<FloorElement | null>(null);
+  const [showReservationDialog, setShowReservationDialog] = useState(false);
 
   useEffect(() => {
     if (eventId) {
@@ -86,27 +85,16 @@ export default function ClientFloorPlan({
     }
   };
 
-  const handleElementClick = async (element: FloorElement) => {
+  const handleElementClick = (element: FloorElement) => {
     // Only allow reservation of table, bed, sofa
     if (!['table', 'bed', 'sofa'].includes(element.type)) {
-      onElementClick(element);
-      return;
-    }
-
-    if (!user) {
-      toast.error('Vous devez être connecté pour réserver');
-      return;
-    }
-
-    if (!validatedCode) {
-      onElementClick(element);
-      return;
+      return; // Non-reservable elements do nothing
     }
 
     // Check if element is already reserved
     const existingReservation = reservations.find(r => r.floor_element_id === element.id);
     if (existingReservation) {
-      if (existingReservation.user_id === user.id) {
+      if (existingReservation.user_id === user?.id) {
         toast.info('Vous avez déjà réservé cet élément');
       } else {
         toast.error('Cet élément est déjà réservé');
@@ -115,33 +103,22 @@ export default function ClientFloorPlan({
     }
 
     // Check if user already has a reservation for this event
-    const userReservation = reservations.find(r => r.user_id === user.id);
-    if (userReservation) {
-      toast.error('Vous avez déjà une réservation pour cet événement');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Create reservation using the new service
-      await ReservationService.createReservation(
-        eventId,
-        element.id,
-        validatedCode.id
-      );
-
-      toast.success(`${element.nom} réservé avec succès !`);
-      loadReservations();
-    } catch (error: any) {
-      console.error('Error creating reservation:', error);
-      if (error.code === '23505') {
-        toast.error('Cet élément vient d\'être réservé par quelqu\'un d\'autre');
-      } else {
-        toast.error('Erreur lors de la réservation');
+    if (user) {
+      const userReservation = reservations.find(r => r.user_id === user.id);
+      if (userReservation) {
+        toast.error('Vous avez déjà une réservation pour cet événement');
+        return;
       }
-    } finally {
-      setLoading(false);
     }
+
+    // Open reservation dialog
+    setSelectedElement(element);
+    setShowReservationDialog(true);
+  };
+
+  const handleReservationSuccess = () => {
+    loadReservations();
+    setSelectedElement(null);
   };
 
   const getElementStyle = (element: FloorElement) => {
@@ -327,15 +304,21 @@ export default function ClientFloorPlan({
         </div>
       )}
 
-      {validatedCode && (
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="bg-card/90 backdrop-blur-sm border rounded-lg p-3">
-            <p className="text-sm text-muted-foreground text-center">
-              ✨ Cliquez sur une table, un bed ou un sofa pour le réserver
-            </p>
-          </div>
+      <div className="absolute bottom-4 left-4 right-4">
+        <div className="bg-card/90 backdrop-blur-sm border rounded-lg p-3">
+          <p className="text-sm text-muted-foreground text-center">
+            ✨ Cliquez sur une table, un bed ou un sofa pour le réserver
+          </p>
         </div>
-      )}
+      </div>
+
+      <ReservationDialog
+        isOpen={showReservationDialog}
+        onClose={() => setShowReservationDialog(false)}
+        element={selectedElement}
+        eventId={eventId || ""}
+        onReservationSuccess={handleReservationSuccess}
+      />
     </div>
   );
 }

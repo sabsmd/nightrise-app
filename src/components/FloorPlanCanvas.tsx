@@ -24,6 +24,7 @@ interface FloorPlanCanvasProps {
   onElementClick: (element: FloorElement) => void;
   onElementResize: (id: string, width: number, height: number) => void;
   onCanvasDrop: (elementType: string, x: number, y: number) => void;
+  reservations?: any[];
 }
 
 const GRID_SIZE = 20;
@@ -36,7 +37,8 @@ export default function FloorPlanCanvas({
   onElementDelete,
   onElementClick,
   onElementResize,
-  onCanvasDrop
+  onCanvasDrop,
+  reservations = []
 }: FloorPlanCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [draggedElement, setDraggedElement] = useState<string | null>(null);
@@ -58,6 +60,9 @@ export default function FloorPlanCanvas({
   };
 
   const getElementStyle = (element: FloorElement) => {
+    const reservation = reservations?.find(r => r.floor_element_id === element.id);
+    const isReserved = !!reservation;
+
     const baseStyles = {
       position: 'absolute' as const,
       left: `${element.position_x}px`,
@@ -79,7 +84,20 @@ export default function FloorPlanCanvas({
       minHeight: '40px'
     };
 
-    // If custom color is set, use it instead of default type styles
+    // Priority 1: Show reservation status for reservable elements
+    if (isReserved && ['table', 'bed', 'sofa'].includes(element.type)) {
+      return {
+        ...baseStyles,
+        backgroundColor: 'hsl(0 84% 60%/0.2)',
+        borderColor: 'hsl(0 84% 60%)',
+        color: 'hsl(0 84% 60%)',
+        borderStyle: 'solid',
+        transform: 'scale(1.02)',
+        boxShadow: '0 2px 8px hsl(0 84% 60%/0.3)'
+      };
+    }
+
+    // Priority 2: If custom color is set, use it instead of default type styles
     if (element.couleur) {
       return {
         ...baseStyles,
@@ -326,6 +344,17 @@ export default function FloorPlanCanvas({
     return icons[type as keyof typeof icons] || '📦';
   };
 
+  const getReservationBadge = (element: FloorElement) => {
+    const reservation = reservations?.find(r => r.floor_element_id === element.id);
+    if (!reservation || !['table', 'bed', 'sofa'].includes(element.type)) return null;
+
+    return (
+      <div className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5 rounded-full border-2 border-background font-bold shadow-sm">
+        Réservé
+      </div>
+    );
+  };
+
   if (!selectedEvent) {
     return (
       <div className="flex-1 flex items-center justify-center bg-secondary/20 rounded-lg border-2 border-dashed border-border min-h-[600px]">
@@ -370,6 +399,9 @@ export default function FloorPlanCanvas({
             <span className="text-lg">{getElementIcon(element.type)}</span>
             <span className="text-xs leading-tight">{element.nom}</span>
           </div>
+
+          {/* Reservation badge for PRO view */}
+          {getReservationBadge(element)}
 
           {editMode && (
             <>

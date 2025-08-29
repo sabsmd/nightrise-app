@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import FloorPlanCanvas, { FloorElement } from "@/components/FloorPlanCanvas";
 import ElementPalette from "@/components/ElementPalette";
 import ElementConfigDialog from "@/components/ElementConfigDialog";
+import ProFloorPlanReservations from "@/components/ProFloorPlanReservations";
 
 export default function FloorPlan() {
   const { user } = useAuth();
@@ -33,10 +34,12 @@ export default function FloorPlan() {
   const [elements, setElements] = useState<FloorElement[]>([]);
   const [tables, setTables] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reservations, setReservations] = useState<any[]>([]);
   const [configDialog, setConfigDialog] = useState<{
     open: boolean;
     element: FloorElement | null;
   }>({ open: false, element: null });
+  const [showReservationDialog, setShowReservationDialog] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -48,6 +51,28 @@ export default function FloorPlan() {
     if (selectedEvent) {
       loadElements();
       loadTables();
+      loadReservations();
+      
+      // Subscribe to real-time reservation updates
+      const channel = supabase
+        .channel('pro-reservations-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'client_reservations',
+            filter: `event_id=eq.${selectedEvent}`
+          },
+          () => {
+            loadReservations();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [selectedEvent]);
 
@@ -100,6 +125,37 @@ export default function FloorPlan() {
     } catch (error) {
       console.error('Erreur lors du chargement des tables:', error);
       toast.error('Erreur lors du chargement des tables');
+    }
+  };
+
+  const loadReservations = async () => {
+    if (!selectedEvent) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('client_reservations')
+        .select(`
+          *,
+          min_spend_code:min_spend_codes(
+            code,
+            min_spend,
+            solde_restant,
+            nom_client,
+            prenom_client,
+            telephone_client
+          ),
+          profiles(
+            nom,
+            email
+          )
+        `)
+        .eq('event_id', selectedEvent)
+        .eq('statut', 'active');
+
+      if (error) throw error;
+      setReservations(data || []);
+    } catch (error) {
+      console.error('Error loading reservations:', error);
     }
   };
 
@@ -157,7 +213,14 @@ export default function FloorPlan() {
   };
 
   const handleElementClick = (element: FloorElement) => {
-    setConfigDialog({ open: true, element });
+    // Check if element is reserved and show reservation details if PRO clicks on it
+    const reservation = reservations.find(r => r.floor_element_id === element.id);
+    if (reservation && ['table', 'bed', 'sofa'].includes(element.type)) {
+      setConfigDialog({ open: false, element });
+      setShowReservationDialog(true);
+    } else {
+      setConfigDialog({ open: true, element });
+    }
   };
 
   const handleCanvasDrop = async (elementType: string, x: number, y: number) => {
@@ -232,10 +295,16 @@ export default function FloorPlan() {
   };
 
   const getTableStats = () => {
-    const tableElements = elements.filter(e => e.type === 'table');
+    const reservableElements = elements.filter(e => ['table', 'bed', 'sofa'].includes(e.type));
+    const reservedElements = reservableElements.filter(e => 
+      reservations.some(r => r.floor_element_id === e.id)
+    );
+    
     return {
-      total: tableElements.length,
-      totalMinSpend: tableElements.reduce((sum, el) => sum + (el.config?.min_spend || 0), 0)
+      total: reservableElements.length,
+      reserved: reservedElements.length,
+      available: reservableElements.length - reservedElements.length,
+      totalMinSpend: reservableElements.reduce((sum, el) => sum + (el.config?.min_spend || 0), 0)
     };
   };
 
@@ -245,7 +314,7 @@ export default function FloorPlan() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Plan de salle</h1>
-          <p className="text-muted-foreground">Gérez l'agencement et le statut de vos tables</p>
+          <p className="text-muted-foreground">Gérez l'agencement et les réservations en temps réel</p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -299,6 +368,7 @@ export default function FloorPlan() {
                 onElementDelete={handleElementDelete}
                 onElementClick={handleElementClick}
                 onCanvasDrop={handleCanvasDrop}
+                reservations={reservations}
               />
             </CardContent>
           </Card>
@@ -310,24 +380,33 @@ export default function FloorPlan() {
 
           <Card className="bg-card/50 backdrop-blur-sm border-border/50">
             <CardHeader>
-              <CardTitle className="text-lg">Statistiques du plan</CardTitle>
+              <CardTitle className="text-lg">Statistiques en temps réel</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm">
-                    <span>Éléments total</span>
+                    <span>Éléments réservables</span>
                     <span className="font-bold text-primary">
-                      {elements.length}
+                      {getTableStats().total}
                     </span>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-sm">
-                    <span>Tables configurées</span>
-                    <span className="font-bold">
-                      {getTableStats().total}
+                    <span>Réservés maintenant</span>
+                    <span className="font-bold text-destructive">
+                      {getTableStats().reserved}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-sm">
+                    <span>Disponibles</span>
+                    <span className="font-bold text-green-600">
+                      {getTableStats().available}
                     </span>
                   </div>
                 </div>
@@ -366,9 +445,23 @@ export default function FloorPlan() {
 
       <ElementConfigDialog
         element={configDialog.element}
-        open={configDialog.open}
+        open={configDialog.open && !showReservationDialog}
         onOpenChange={(open) => setConfigDialog({ ...configDialog, open })}
         onSave={handleElementSave}
+      />
+
+      <ProFloorPlanReservations
+        selectedElement={configDialog.element}
+        isOpen={showReservationDialog}
+        onClose={() => {
+          setShowReservationDialog(false);
+          setConfigDialog({ open: false, element: null });
+        }}
+        onReservationCancelled={() => {
+          loadReservations();
+          setShowReservationDialog(false);
+          setConfigDialog({ open: false, element: null });
+        }}
       />
     </div>
   );

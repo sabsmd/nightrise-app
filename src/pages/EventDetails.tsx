@@ -258,8 +258,6 @@ export default function EventDetails() {
                 <CardContent>
                   <ClientFloorPlan 
                     elements={floorElements}
-                    onElementClick={handleElementClick}
-                    validatedCode={validatedWallet}
                     eventId={eventId}
                   />
                 </CardContent>
