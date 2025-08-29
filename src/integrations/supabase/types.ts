@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_reservations: {
+        Row: {
+          created_at: string
+          event_id: string
+          floor_element_id: string
+          id: string
+          min_spend_code_id: string
+          statut: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          floor_element_id: string
+          id?: string
+          min_spend_code_id: string
+          statut?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          floor_element_id?: string
+          id?: string
+          min_spend_code_id?: string
+          statut?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_reservations_min_spend_code_id_fkey"
+            columns: ["min_spend_code_id"]
+            isOneToOne: false
+            referencedRelation: "min_spend_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           artiste_dj: string | null
@@ -106,7 +147,7 @@ export type Database = {
           code: string
           created_at: string
           event_id: string
-          floor_element_id: string | null
+          floor_element_id: string
           id: string
           min_spend: number
           nom_client: string
@@ -122,7 +163,7 @@ export type Database = {
           code: string
           created_at?: string
           event_id: string
-          floor_element_id?: string | null
+          floor_element_id: string
           id?: string
           min_spend?: number
           nom_client: string
@@ -138,7 +179,7 @@ export type Database = {
           code?: string
           created_at?: string
           event_id?: string
-          floor_element_id?: string | null
+          floor_element_id?: string
           id?: string
           min_spend?: number
           nom_client?: string
