@@ -43,6 +43,14 @@ export interface CreateWalletData {
 export class WalletService {
   static async getWallet(code: string): Promise<WalletData | null> {
     try {
+      // Verify user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Authentication required to access wallet');
+      }
+
+      console.log('WalletService.getWallet called with code:', code, 'by user:', user.id);
+      
       // First, try to get wallet from new system
       const { data: wallet, error: walletError } = await supabase
         .from('min_spend_wallets')

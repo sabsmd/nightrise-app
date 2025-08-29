@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Eye, Loader2 } from "lucide-react";
+import { CreditCard, Eye, Loader2, LogIn } from "lucide-react";
 import { WalletService, WalletData } from "@/services/walletService";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface WalletCodeInputProps {
   eventId: string;
@@ -16,8 +18,28 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [validatedWallet, setValidatedWallet] = useState<WalletData | null>(null);
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth', { 
+        state: { from: location.pathname } 
+      });
+    }
+  }, [user, authLoading, navigate, location.pathname]);
 
   const validateCode = async () => {
+    if (!user) {
+      toast.error('Vous devez être connecté pour utiliser un code');
+      navigate('/auth', { 
+        state: { from: location.pathname } 
+      });
+      return;
+    }
+
     if (!code.trim()) {
       toast.error('Veuillez entrer votre code');
       return;
@@ -67,6 +89,53 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
     setCode("");
     setValidatedWallet(null);
   };
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+            <p className="text-sm text-muted-foreground">Vérification de l'authentification...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!user) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LogIn className="w-5 h-5 text-primary" />
+            Connexion requise
+          </CardTitle>
+          <CardDescription>
+            Vous devez être connecté pour utiliser votre code minimum spend
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center space-y-4">
+            <div className="p-4 bg-muted/20 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                L'accès aux codes minimum spend est réservé aux utilisateurs connectés.
+              </p>
+            </div>
+            <Button 
+              onClick={() => navigate('/auth', { state: { from: location.pathname } })}
+              className="w-full"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Se connecter
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
