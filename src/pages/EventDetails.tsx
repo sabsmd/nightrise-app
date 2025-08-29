@@ -11,8 +11,6 @@ import { ArrowLeft, Calendar, MapPin, Mail, Phone, ExternalLink, Users, Euro, Lo
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ClientFloorPlan from '@/components/ClientFloorPlan';
-import WalletCodeInput from "@/components/WalletCodeInput";
-import WalletCard from "@/components/WalletCard";
 
 interface Event {
   id: string;
@@ -47,9 +45,6 @@ export default function EventDetails() {
   const [floorElements, setFloorElements] = useState<FloorElement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedElement, setSelectedElement] = useState<FloorElement | null>(null);
-  const [walletCode, setWalletCode] = useState<string>("");
-  const [validatedWallet, setValidatedWallet] = useState<any>(null);
-  const [showWalletCard, setShowWalletCard] = useState(false);
 
   useEffect(() => {
     if (eventId) {
@@ -127,22 +122,6 @@ export default function EventDetails() {
     }
   };
 
-  const handleWalletValidated = (wallet: any) => {
-    setValidatedWallet(wallet);
-    setShowWalletCard(true);
-  };
-
-  const handleWalletUpdated = () => {
-    // Refresh wallet data after transactions
-    if (walletCode && validatedWallet) {
-      // Re-validate the wallet to get updated balance
-      setTimeout(() => {
-        // This will trigger a refresh of the wallet data
-        setValidatedWallet(null);
-        setShowWalletCard(false);
-      }, 1000);
-    }
-  };
 
   if (loading) {
     return (
@@ -266,28 +245,6 @@ export default function EventDetails() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Wallet Code Input */}
-              {!validatedWallet && (
-                <WalletCodeInput 
-                  eventId={eventId!}
-                  selectedElementId={selectedElement?.id}
-                  onWalletValidated={handleWalletValidated}
-                />
-              )}
-
-              {/* Wallet Card */}
-              {validatedWallet && showWalletCard && (
-                <WalletCard 
-                  wallet={validatedWallet}
-                  eventId={eventId!}
-                  onWalletUpdated={handleWalletUpdated}
-                  onClose={() => {
-                    setShowWalletCard(false);
-                    setValidatedWallet(null);
-                    setWalletCode("");
-                  }}
-                />
-              )}
               
               {/* Event Details */}
               <Card>
@@ -392,7 +349,7 @@ export default function EventDetails() {
             
             <div className="text-center p-4 bg-muted/20 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                Pour réserver cet élément, validez d'abord votre code minimum spend puis cliquez directement sur l'élément dans le plan.
+                Pour réserver cet élément, vous avez besoin d'un code minimum spend valide. Contactez l'organisateur pour obtenir votre code.
               </p>
             </div>
           </div>

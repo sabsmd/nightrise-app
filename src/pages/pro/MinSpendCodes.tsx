@@ -8,8 +8,6 @@ import { toast } from "sonner";
 import MinSpendCodeForm from "@/components/MinSpendCodeForm";
 import MinSpendCodeTable from "@/components/MinSpendCodeTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { WalletService, WalletData } from "@/services/walletService";
-import WalletManagement from "@/components/WalletManagement";
 
 interface Event {
   id: string;
@@ -42,7 +40,7 @@ export default function MinSpendCodes() {
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [floorElements, setFloorElements] = useState<FloorElement[]>([]);
   const [minSpendCodes, setMinSpendCodes] = useState<MinSpendCode[]>([]);
-  const [wallets, setWallets] = useState<WalletData[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [activeTab, setActiveTab] = useState("legacy");
@@ -113,14 +111,6 @@ export default function MinSpendCodes() {
       setFloorElements(elementsData || []);
       setMinSpendCodes((codesData || []) as MinSpendCode[]);
 
-      // Load wallets using the new system
-      try {
-        const eventWallets = await WalletService.getEventWallets(selectedEventId);
-        setWallets(eventWallets);
-      } catch (error) {
-        console.error('Error loading wallets:', error);
-        setWallets([]);
-      }
 
       // Calculer les statistiques
       const codes = codesData || [];
@@ -275,36 +265,19 @@ export default function MinSpendCodes() {
             </Card>
           </div>
 
-          {/* Wallet Management Tabs */}
+          {/* Codes Management */}
           <Card className="bg-card/50 backdrop-blur-sm border-border/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-primary" />
+                <Crown className="w-5 h-5 text-primary" />
                 Gestion des codes pour: {selectedEvent?.titre}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="legacy">Codes existants</TabsTrigger>
-                  <TabsTrigger value="wallets">Système Wallet</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="legacy" className="mt-6">
-                  <MinSpendCodeTable 
-                    codes={minSpendCodes}
-                    onCodeDeleted={loadEventData}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="wallets" className="mt-6">
-                  <WalletManagement 
-                    eventId={selectedEventId}
-                    wallets={wallets}
-                    onWalletUpdated={loadEventData}
-                  />
-                </TabsContent>
-              </Tabs>
+              <MinSpendCodeTable 
+                codes={minSpendCodes}
+                onCodeDeleted={loadEventData}
+              />
             </CardContent>
           </Card>
         </>

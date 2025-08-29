@@ -91,7 +91,6 @@ export default function ProEventDetails() {
     if (eventId) {
       fetchEventDetails();
       fetchFloorElements();
-      fetchReservationCodes();
       fetchMinSpendCodes();
     }
   }, [eventId]);
@@ -129,29 +128,6 @@ export default function ProEventDetails() {
     }
   };
 
-  const fetchReservationCodes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('reservation_codes')
-        .select(`
-          *,
-          floor_element:floor_elements(*)
-        `)
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setReservationCodes((data || []).map(item => ({
-        ...item,
-        statut: item.statut as 'non_utilise' | 'utilise' | 'expire'
-      })));
-    } catch (error) {
-      console.error('Error fetching reservation codes:', error);
-      toast.error('Erreur lors du chargement des codes');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchMinSpendCodes = async () => {
     try {
@@ -215,29 +191,13 @@ export default function ProEventDetails() {
       toast.success(`Code de réservation créé : ${code}`);
       setIsDialogOpen(false);
       resetForm();
-      fetchReservationCodes();
+      
     } catch (error) {
       console.error('Error creating reservation code:', error);
       toast.error('Erreur lors de la création du code');
     }
   };
 
-  const deleteReservationCode = async (codeId: string) => {
-    try {
-      const { error } = await supabase
-        .from('reservation_codes')
-        .delete()
-        .eq('id', codeId);
-
-      if (error) throw error;
-
-      toast.success('Code de réservation supprimé');
-      fetchReservationCodes();
-    } catch (error) {
-      console.error('Error deleting reservation code:', error);
-      toast.error('Erreur lors de la suppression du code');
-    }
-  };
 
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
