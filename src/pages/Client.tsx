@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Calendar, MapPin, Users, Star, Menu, X } from "lucide-react";
+import { Loader2, Search, Calendar, MapPin, Users, Star, Menu, X, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -111,6 +111,12 @@ export default function Client() {
             <div className="hidden md:flex items-center space-x-4">
               {user && profile ? (
                 <div className="flex items-center space-x-4">
+                  <Link to="/mes-reservations">
+                    <Button variant="outline" className="flex items-center space-x-2">
+                      <CreditCard className="w-4 h-4" />
+                      <span>Mes Réservations</span>
+                    </Button>
+                  </Link>
                   <span className="text-muted-foreground">Bonjour, {profile.nom}</span>
                   <Button variant="outline" onClick={handleSignOut}>
                     Se déconnecter
@@ -138,6 +144,12 @@ export default function Client() {
               {user && profile ? (
                 <div className="space-y-3">
                   <p className="text-muted-foreground">Bonjour, {profile.nom}</p>
+                  <Link to="/mes-reservations" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full flex items-center justify-center space-x-2">
+                      <CreditCard className="w-4 h-4" />
+                      <span>Mes Réservations</span>
+                    </Button>
+                  </Link>
                   <Button variant="outline" onClick={handleSignOut} className="w-full">
                     Se déconnecter
                   </Button>

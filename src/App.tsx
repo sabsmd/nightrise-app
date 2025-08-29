@@ -15,6 +15,7 @@ import Client from "./pages/Client";
 import Auth from "./pages/Auth";
 import ClientAuth from "./pages/ClientAuth";
 import EventDetails from "./pages/EventDetails";
+import ClientReservations from "./components/ClientReservations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             {/* Interface CLIENT */}
             <Route path="/" element={<Client />} />
             <Route path="/event/:eventId" element={<EventDetails />} />
+            <Route path="/mes-reservations" element={<ClientReservations />} />
             
             {/* Interface PRO - Protégée (Admin uniquement) */}
             <Route path="/pro" element={<ProLayout />}>

@@ -64,8 +64,8 @@ export default function MinSpendCodeForm({ eventId, onCodeCreated }: MinSpendCod
 
   const createMinSpendCode = async () => {
     try {
-      if (!newCode.nom_client || !newCode.prenom_client || !newCode.telephone_client || !newCode.min_spend) {
-        toast.error('Veuillez remplir tous les champs obligatoires');
+      if (!newCode.nom_client || !newCode.prenom_client || !newCode.telephone_client || !newCode.min_spend || !newCode.floor_element_id) {
+        toast.error('Veuillez remplir tous les champs obligatoires, y compris l\'élément du plan');
         return;
       }
 
@@ -80,7 +80,7 @@ export default function MinSpendCodeForm({ eventId, onCodeCreated }: MinSpendCod
       // Create in legacy table for compatibility
       const codeData = {
         event_id: eventId,
-        floor_element_id: newCode.floor_element_id || null,
+        floor_element_id: newCode.floor_element_id,
         code,
         nom_client: newCode.nom_client,
         prenom_client: newCode.prenom_client,
@@ -182,13 +182,13 @@ export default function MinSpendCodeForm({ eventId, onCodeCreated }: MinSpendCod
                 </div>
                 
                 <div>
-                  <Label htmlFor="element">Élément du plan (optionnel)</Label>
+                  <Label htmlFor="element">Élément du plan *</Label>
                   <Select
                     value={newCode.floor_element_id}
                     onValueChange={(value) => setNewCode({...newCode, floor_element_id: value})}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un élément" />
+                      <SelectValue placeholder="Sélectionner un élément obligatoire" />
                     </SelectTrigger>
                     <SelectContent>
                       {floorElements.map((element) => (

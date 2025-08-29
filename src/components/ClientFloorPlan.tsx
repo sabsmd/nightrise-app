@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { ReservationService } from "@/services/reservationService";
 
 export interface FloorElement {
   id: string;
@@ -16,7 +17,7 @@ export interface FloorElement {
   couleur?: string;
 }
 
-interface Reservation {
+interface ClientReservation {
   id: string;
   floor_element_id: string;
   user_id: string;
@@ -38,7 +39,7 @@ export default function ClientFloorPlan({
   eventId
 }: ClientFloorPlanProps) {
   const { user } = useAuth();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservations, setReservations] = useState<ClientReservation[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -47,13 +48,13 @@ export default function ClientFloorPlan({
       
       // Subscribe to real-time updates
       const channel = supabase
-        .channel('reservations-changes')
+        .channel('client-reservations-changes')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'reservations',
+            table: 'client_reservations',
             filter: `event_id=eq.${eventId}`
           },
           () => {
@@ -73,7 +74,7 @@ export default function ClientFloorPlan({
     
     try {
       const { data, error } = await supabase
-        .from('reservations')
+        .from('client_reservations')
         .select('*')
         .eq('event_id', eventId)
         .eq('statut', 'active');
@@ -98,7 +99,7 @@ export default function ClientFloorPlan({
     }
 
     if (!validatedCode) {
-      toast.error('Veuillez d\'abord valider votre code minimum spend');
+      onElementClick(element);
       return;
     }
 
@@ -122,31 +123,12 @@ export default function ClientFloorPlan({
 
     setLoading(true);
     try {
-      // Create reservation
-      const { data: reservation, error: reservationError } = await supabase
-        .from('reservations')
-        .insert({
-          event_id: eventId,
-          floor_element_id: element.id,
-          min_spend_code_id: validatedCode.id,
-          user_id: user.id,
-          statut: 'active'
-        })
-        .select()
-        .single();
-
-      if (reservationError) throw reservationError;
-
-      // Update min_spend_code status and link to reservation
-      const { error: codeError } = await supabase
-        .from('min_spend_codes')
-        .update({
-          statut: 'reserved',
-          reservation_id: reservation.id
-        })
-        .eq('id', validatedCode.id);
-
-      if (codeError) throw codeError;
+      // Create reservation using the new service
+      await ReservationService.createReservation(
+        eventId,
+        element.id,
+        validatedCode.id
+      );
 
       toast.success(`${element.nom} réservé avec succès !`);
       loadReservations();

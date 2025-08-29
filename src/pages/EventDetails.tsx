@@ -272,6 +272,7 @@ export default function EventDetails() {
               {!validatedWallet && (
                 <WalletCodeInput 
                   eventId={eventId!}
+                  selectedElementId={selectedElement?.id}
                   onWalletValidated={handleWalletValidated}
                 />
               )}

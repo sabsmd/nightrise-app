@@ -41,7 +41,7 @@ export interface CreateWalletData {
 }
 
 export class WalletService {
-  static async getWallet(code: string): Promise<WalletData | null> {
+  static async getWallet(code: string, selectedElementId?: string): Promise<WalletData | null> {
     try {
       // Verify user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
@@ -107,6 +107,13 @@ export class WalletService {
 
       if (minSpendCode && !codeError) {
         console.log('Found old min_spend_code, migrating to wallet...');
+        
+        // Validate floor_element_id if selectedElementId is provided
+        if (selectedElementId && minSpendCode.floor_element_id !== selectedElementId) {
+          const elementName = minSpendCode.floor_element?.nom || 'l\'élément associé';
+          throw new Error(`❌ Ce code est réservé pour ${elementName}`);
+        }
+        
         return await this.migrateMinSpendCode(minSpendCode);
       }
 

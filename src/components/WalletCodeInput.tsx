@@ -11,10 +11,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 interface WalletCodeInputProps {
   eventId: string;
+  selectedElementId?: string;
   onWalletValidated: (wallet: WalletData) => void;
 }
 
-export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCodeInputProps) {
+export default function WalletCodeInput({ eventId, selectedElementId, onWalletValidated }: WalletCodeInputProps) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [validatedWallet, setValidatedWallet] = useState<WalletData | null>(null);
@@ -36,7 +37,7 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
     setLoading(true);
     try {
       console.log('Validating code:', code.trim().toUpperCase());
-      const wallet = await WalletService.getWallet(code.trim().toUpperCase());
+      const wallet = await WalletService.getWallet(code.trim().toUpperCase(), selectedElementId);
       
       if (!wallet) {
         console.log('No wallet found for code');
@@ -60,9 +61,13 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
       setValidatedWallet(wallet);
       toast.success('Code validé avec succès !');
       setLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error validating code:', error);
-      toast.error('Erreur lors de la validation du code');
+      if (error.message && error.message.includes('❌')) {
+        toast.error(error.message);
+      } else {
+        toast.error('Erreur lors de la validation du code');
+      }
       setLoading(false);
     }
   };
