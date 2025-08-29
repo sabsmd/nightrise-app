@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useFloorPlanStats } from "@/hooks/useFloorPlanStats";
+import { useRealtimeReservations } from "@/hooks/useRealtimeReservations";
 import { toast } from "sonner";
 import FloorPlanCanvas, { FloorElement } from "@/components/FloorPlanCanvas";
 import ElementPalette from "@/components/ElementPalette";
@@ -35,7 +37,8 @@ export default function FloorPlan() {
   const [elements, setElements] = useState<FloorElement[]>([]);
   const [tables, setTables] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reservations, setReservations] = useState<any[]>([]);
+  const { reservations } = useRealtimeReservations(selectedEvent);
+  const floorPlanStats = useFloorPlanStats(selectedEvent);
   const [configDialog, setConfigDialog] = useState<{
     open: boolean;
     element: FloorElement | null;
@@ -52,28 +55,6 @@ export default function FloorPlan() {
     if (selectedEvent) {
       loadElements();
       loadTables();
-      loadReservations();
-      
-      // Subscribe to real-time reservation updates
-      const channel = supabase
-        .channel('pro-reservations-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'client_reservations',
-            filter: `event_id=eq.${selectedEvent}`
-          },
-          () => {
-            loadReservations();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     }
   }, [selectedEvent]);
 
@@ -129,40 +110,6 @@ export default function FloorPlan() {
     }
   };
 
-  const loadReservations = async () => {
-    if (!selectedEvent) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('client_reservations')
-        .select(`
-          *,
-          min_spend_code:min_spend_codes(
-            code,
-            min_spend,
-            solde_restant,
-            nom_client,
-            prenom_client,
-            telephone_client
-          ),
-          floor_element:floor_elements(
-            nom,
-            type
-          ),
-          profiles(
-            nom,
-            email
-          )
-        `)
-        .eq('event_id', selectedEvent)
-        .eq('statut', 'active');
-
-      if (error) throw error;
-      setReservations(data || []);
-    } catch (error) {
-      console.error('Error loading reservations:', error);
-    }
-  };
 
   const handleElementMove = async (id: string, x: number, y: number) => {
     try {
@@ -299,25 +246,6 @@ export default function FloorPlan() {
     }
   };
 
-  const getTableStats = () => {
-    const reservableElements = elements.filter(e => ['table', 'bed', 'sofa'].includes(e.type));
-    const reservedElements = reservableElements.filter(e => 
-      reservations.some(r => r.floor_element_id === e.id && r.statut === 'active')
-    );
-    
-    // Calculer le min spend total des éléments réservés
-    const reservedMinSpend = reservedElements.reduce((sum, el) => {
-      const reservation = reservations.find(r => r.floor_element_id === el.id && r.statut === 'active');
-      return sum + (reservation?.min_spend_code?.min_spend || el.config?.min_spend || 0);
-    }, 0);
-    
-    return {
-      total: reservableElements.length,
-      reserved: reservedElements.length,
-      available: reservableElements.length - reservedElements.length,
-      totalMinSpend: reservedMinSpend
-    };
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -399,7 +327,7 @@ export default function FloorPlan() {
                   <div className="flex justify-between text-sm">
                     <span>Éléments réservables</span>
                     <span className="font-bold text-primary">
-                      {getTableStats().total}
+                      {floorPlanStats.total}
                     </span>
                   </div>
                 </div>
@@ -408,7 +336,7 @@ export default function FloorPlan() {
                   <div className="flex justify-between text-sm">
                     <span>Réservés maintenant</span>
                     <span className="font-bold text-destructive">
-                      {getTableStats().reserved}
+                      {floorPlanStats.reserved}
                     </span>
                   </div>
                 </div>
@@ -417,7 +345,7 @@ export default function FloorPlan() {
                   <div className="flex justify-between text-sm">
                     <span>Disponibles</span>
                     <span className="font-bold text-green-600">
-                      {getTableStats().available}
+                      {floorPlanStats.available}
                     </span>
                   </div>
                 </div>
@@ -426,7 +354,7 @@ export default function FloorPlan() {
                   <div className="flex justify-between text-sm">
                     <span>Min spend total</span>
                     <span className="font-bold text-accent">
-                      €{getTableStats().totalMinSpend}
+                      €{floorPlanStats.minSpendTotal}
                     </span>
                   </div>
                 </div>
@@ -471,7 +399,6 @@ export default function FloorPlan() {
           setConfigDialog({ open: false, element: null });
         }}
         onReservationCancelled={() => {
-          loadReservations();
           setShowReservationDialog(false);
           setConfigDialog({ open: false, element: null });
         }}
