@@ -22,21 +22,9 @@ export default function WalletCodeInput({ eventId, onWalletValidated }: WalletCo
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth', { 
-        state: { from: location.pathname } 
-      });
-    }
-  }, [user, authLoading, navigate, location.pathname]);
-
   const validateCode = async () => {
     if (!user) {
       toast.error('Vous devez être connecté pour utiliser un code');
-      navigate('/auth', { 
-        state: { from: location.pathname } 
-      });
       return;
     }
 
