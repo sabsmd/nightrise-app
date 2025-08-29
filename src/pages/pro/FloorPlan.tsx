@@ -302,14 +302,20 @@ export default function FloorPlan() {
   const getTableStats = () => {
     const reservableElements = elements.filter(e => ['table', 'bed', 'sofa'].includes(e.type));
     const reservedElements = reservableElements.filter(e => 
-      reservations.some(r => r.floor_element_id === e.id)
+      reservations.some(r => r.floor_element_id === e.id && r.statut === 'active')
     );
+    
+    // Calculer le min spend total des éléments réservés
+    const reservedMinSpend = reservedElements.reduce((sum, el) => {
+      const reservation = reservations.find(r => r.floor_element_id === el.id && r.statut === 'active');
+      return sum + (reservation?.min_spend_code?.min_spend || el.config?.min_spend || 0);
+    }, 0);
     
     return {
       total: reservableElements.length,
       reserved: reservedElements.length,
       available: reservableElements.length - reservedElements.length,
-      totalMinSpend: reservableElements.reduce((sum, el) => sum + (el.config?.min_spend || 0), 0)
+      totalMinSpend: reservedMinSpend
     };
   };
 

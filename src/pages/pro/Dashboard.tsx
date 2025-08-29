@@ -82,12 +82,41 @@ export default function Dashboard() {
 
       if (pendingOrdersError) throw pendingOrdersError;
 
+      // Calculer les statistiques des tables réservées pour le prochain événement
+      const nextEvent = eventsData?.find(event => new Date(event.date) >= new Date());
+      let reservedTables = 0;
+      let totalTables = 0;
+
+      if (nextEvent) {
+        // Charger les éléments réservables du prochain événement
+        const { data: elementsData, error: elementsError } = await supabase
+          .from('floor_elements')
+          .select('id')
+          .eq('event_id', nextEvent.id)
+          .in('type', ['table', 'bed', 'sofa']);
+
+        if (!elementsError && elementsData) {
+          totalTables = elementsData.length;
+
+          // Charger les réservations actives pour ces éléments
+          const { data: reservationsData, error: reservationsError } = await supabase
+            .from('client_reservations')
+            .select('floor_element_id')
+            .eq('event_id', nextEvent.id)
+            .eq('statut', 'active');
+
+          if (!reservationsError && reservationsData) {
+            reservedTables = reservationsData.length;
+          }
+        }
+      }
+
       setEvents(eventsData || []);
       setOrders(ordersData || []);
       setStats({
         activeEvents: eventsData?.length || 0,
-        reservedTables: 0, // À calculer plus tard avec les tables
-        totalTables: 0,
+        reservedTables,
+        totalTables,
         dailyRevenue,
         pendingOrders: pendingOrdersData?.length || 0
       });

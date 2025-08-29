@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import MinSpendCodeForm from "@/components/MinSpendCodeForm";
 import MinSpendCodeTable from "@/components/MinSpendCodeTable";
+import ProEventReservations from "@/components/ProEventReservations";
 
 interface Event {
   id: string;
@@ -309,6 +310,10 @@ export default function ProEventDetails() {
             <CreditCard className="w-4 h-4" />
             <span>Codes minimum spend</span>
           </TabsTrigger>
+          <TabsTrigger value="reservations" className="flex items-center space-x-2">
+            <Calendar className="w-4 h-4" />
+            <span>Réservations</span>
+          </TabsTrigger>
           <TabsTrigger value="details">Détails de l'événement</TabsTrigger>
         </TabsList>
 
@@ -316,6 +321,10 @@ export default function ProEventDetails() {
         <TabsContent value="minspend" className="space-y-6">
           <MinSpendCodeForm eventId={eventId!} onCodeCreated={fetchMinSpendCodes} />
           <MinSpendCodeTable codes={minSpendCodes} onCodeDeleted={fetchMinSpendCodes} />
+        </TabsContent>
+
+        <TabsContent value="reservations">
+          <ProEventReservations eventId={eventId!} />
         </TabsContent>
 
         <TabsContent value="details">
