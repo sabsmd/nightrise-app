@@ -134,18 +134,30 @@ export default function ProEventDetails() {
     try {
       const { data, error } = await supabase
         .from('min_spend_codes')
-        .select(`
-          *,
-          floor_element:floor_elements(*)
-        `)
+        .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMinSpendCodes((data || []).map(item => ({
-        ...item,
-        statut: item.statut as 'actif' | 'utilise' | 'expire'
-      })));
+      
+      // Récupérer les éléments associés séparément
+      if (data && data.length > 0) {
+        const elementIds = [...new Set(data.map(item => item.floor_element_id))];
+        const { data: elements } = await supabase
+          .from('floor_elements')
+          .select('*')
+          .in('id', elementIds);
+
+        const elementsMap = new Map((elements || []).map(e => [e.id, e]));
+        
+        setMinSpendCodes(data.map(item => ({
+          ...item,
+          statut: item.statut as 'actif' | 'utilise' | 'expire',
+          floor_element: elementsMap.get(item.floor_element_id)
+        })));
+      } else {
+        setMinSpendCodes([]);
+      }
     } catch (error) {
       console.error('Error fetching min spend codes:', error);
       toast.error('Erreur lors du chargement des codes de minimum spend');

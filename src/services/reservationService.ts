@@ -151,9 +151,9 @@ export class ReservationService {
         .eq('event_id', eventId)
         .eq('floor_element_id', floorElementId)
         .eq('statut', 'active')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
       if (!reservation) return null;
 
       // Get related data

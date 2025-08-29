@@ -63,22 +63,32 @@ export function useDashboardStats() {
         .select(`
           id,
           floor_element_id,
-          min_spend_code:min_spend_codes(min_spend)
+          min_spend_code_id
         `)
         .eq('event_id', nextEvent.id)
         .eq('statut', 'active');
 
       if (reservationsError) throw reservationsError;
 
+      // Récupérer les codes min spend associés
+      let minSpendTotal = 0;
+      if (reservations && reservations.length > 0) {
+        const codeIds = [...new Set(reservations.map(r => r.min_spend_code_id))];
+        const { data: codes } = await supabase
+          .from('min_spend_codes')
+          .select('id, min_spend')
+          .in('id', codeIds);
+
+        const codesMap = new Map((codes || []).map(c => [c.id, c.min_spend]));
+        minSpendTotal = reservations.reduce((sum, reservation) => {
+          return sum + (codesMap.get(reservation.min_spend_code_id) || 0);
+        }, 0);
+      }
+
       const totalElements = elements?.length || 0;
       const reservedCount = reservations?.length || 0;
       const availableCount = totalElements - reservedCount;
       const percentage = totalElements > 0 ? Math.round((reservedCount / totalElements) * 100) : 0;
-
-      // Calculer le min spend total
-      const minSpendTotal = reservations?.reduce((sum, reservation) => {
-        return sum + (reservation.min_spend_code?.min_spend || 0);
-      }, 0) || 0;
 
       setStats({
         total: totalElements,

@@ -53,6 +53,27 @@ export type Database = {
             referencedRelation: "min_spend_codes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_client_reservations_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_reservations_floor_element"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_reservations_min_spend_code"
+            columns: ["min_spend_code_id"]
+            isOneToOne: false
+            referencedRelation: "min_spend_codes"
+            referencedColumns: ["id"]
+          },
         ]
       }
       events: {
@@ -140,7 +161,15 @@ export type Database = {
           updated_at?: string
           width?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_floor_elements_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       min_spend_codes: {
         Row: {
@@ -192,6 +221,20 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_min_spend_codes_event"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_min_spend_codes_floor_element"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "min_spend_codes_event_id_fkey"
             columns: ["event_id"]

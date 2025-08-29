@@ -50,7 +50,7 @@ export default function ReservationDialog({
       // Valider le code minimum spend directement depuis la table min_spend_codes
       const { data: minSpendCode, error } = await supabase
         .from('min_spend_codes')
-        .select('id, floor_element_id, min_spend, solde_restant, statut, floor_element:floor_elements(nom)')
+        .select('id, floor_element_id, min_spend, solde_restant, statut')
         .eq('code', code.trim().toUpperCase())
         .eq('statut', 'actif')
         .single();
@@ -63,7 +63,14 @@ export default function ReservationDialog({
 
       // Vérifier que le code correspond à l'élément sélectionné
       if (minSpendCode.floor_element_id !== element.id) {
-        const elementName = minSpendCode.floor_element?.nom || 'un autre élément';
+        // Récupérer le nom de l'élément pour le message d'erreur
+        const { data: floorElement } = await supabase
+          .from('floor_elements')
+          .select('nom')
+          .eq('id', minSpendCode.floor_element_id)
+          .single();
+        
+        const elementName = floorElement?.nom || 'un autre élément';
         toast.error(`❌ Ce code est réservé pour ${elementName}.`);
         setLoading(false);
         return;
