@@ -25,6 +25,7 @@ import FloorPlanCanvas, { FloorElement } from "@/components/FloorPlanCanvas";
 import ElementPalette from "@/components/ElementPalette";
 import ElementConfigDialog from "@/components/ElementConfigDialog";
 import ProFloorPlanReservations from "@/components/ProFloorPlanReservations";
+import ProReservationsTable from "@/components/ProReservationsTable";
 
 export default function FloorPlan() {
   const { user } = useAuth();
@@ -143,6 +144,10 @@ export default function FloorPlan() {
             nom_client,
             prenom_client,
             telephone_client
+          ),
+          floor_element:floor_elements(
+            nom,
+            type
           ),
           profiles(
             nom,
@@ -440,6 +445,8 @@ export default function FloorPlan() {
               </div>
             </CardContent>
           </Card>
+
+          <ProReservationsTable reservations={reservations} />
         </div>
       </div>
 

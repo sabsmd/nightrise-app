@@ -28,19 +28,19 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
   useEffect(() => {
     if (!profile || profile.role !== 'admin' || !eventId) return;
 
-    // Subscribe to reservations
+    // Subscribe to client reservations
     const reservationsChannel = supabase
-      .channel('admin-reservations')
+      .channel('admin-client-reservations')
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'reservations',
+          table: 'client_reservations',
           filter: `event_id=eq.${eventId}`
         },
         async (payload) => {
-          // Get element and user details
+          // Get element and code details
           const { data: elementData } = await supabase
             .from('floor_elements')
             .select('nom, type')
@@ -49,14 +49,14 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
 
           const { data: codeData } = await supabase
             .from('min_spend_codes')
-            .select('nom_client, prenom_client')
+            .select('nom_client, prenom_client, code')
             .eq('id', payload.new.min_spend_code_id)
             .single();
 
           const notification: Notification = {
             id: payload.new.id,
             type: 'new_reservation',
-            message: `${codeData?.prenom_client} ${codeData?.nom_client} a réservé ${elementData?.nom} (${elementData?.type})`,
+            message: `${codeData?.prenom_client} ${codeData?.nom_client} a réservé ${elementData?.nom} (${elementData?.type}) avec le code ${codeData?.code}`,
             data: payload.new,
             timestamp: new Date(),
             read: false
@@ -66,7 +66,7 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
           setUnreadCount(prev => prev + 1);
           
           toast.success(`Nouvelle réservation: ${elementData?.nom}`, {
-            description: `${codeData?.prenom_client} ${codeData?.nom_client}`,
+            description: `${codeData?.prenom_client} ${codeData?.nom_client} • Code ${codeData?.code}`,
             action: {
               label: "Voir",
               onClick: () => {/* Navigate to reservations */}
