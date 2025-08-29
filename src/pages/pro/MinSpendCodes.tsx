@@ -98,10 +98,13 @@ export default function MinSpendCodes() {
 
       if (elementsError) throw elementsError;
 
-      // Charger les codes minimum spend
+      // Charger les codes minimum spend avec les éléments liés
       const { data: codesData, error: codesError } = await supabase
         .from('min_spend_codes')
-        .select('*')
+        .select(`
+          *,
+          floor_element:floor_elements(id, nom, type)
+        `)
         .eq('event_id', selectedEventId)
         .order('created_at', { ascending: false });
 

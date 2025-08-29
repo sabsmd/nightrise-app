@@ -7,7 +7,7 @@ import { CreditCard, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { WalletService } from "@/services/walletService";
+import { supabase } from "@/integrations/supabase/client";
 import { ReservationService } from "@/services/reservationService";
 import { FloorElement } from './ClientFloorPlan';
 
@@ -47,22 +47,24 @@ export default function ReservationDialog({
 
     setLoading(true);
     try {
-      // Valider le code minimum spend et vérifier qu'il correspond à l'élément
-      const wallet = await WalletService.getWallet(code.trim().toUpperCase(), element.id);
-      
-      if (!wallet) {
+      // Valider le code minimum spend directement depuis la table min_spend_codes
+      const { data: minSpendCode, error } = await supabase
+        .from('min_spend_codes')
+        .select('id, floor_element_id, min_spend, solde_restant, statut, floor_element:floor_elements(nom)')
+        .eq('code', code.trim().toUpperCase())
+        .eq('statut', 'actif')
+        .single();
+
+      if (error || !minSpendCode) {
         toast.error('Code minimum spend incorrect ou inexistant');
         setLoading(false);
         return;
       }
 
-      if (wallet.status !== 'active') {
-        const statusMessages = {
-          expired: 'Ce code a expiré',
-          suspended: 'Ce code est temporairement suspendu',
-          closed: 'Ce code a été fermé'
-        };
-        toast.error(statusMessages[wallet.status as keyof typeof statusMessages] || 'Code non valide');
+      // Vérifier que le code correspond à l'élément sélectionné
+      if (minSpendCode.floor_element_id !== element.id) {
+        const elementName = minSpendCode.floor_element?.nom || 'un autre élément';
+        toast.error(`❌ Ce code est réservé pour ${elementName}.`);
         setLoading(false);
         return;
       }
@@ -71,7 +73,7 @@ export default function ReservationDialog({
       await ReservationService.createReservation(
         eventId,
         element.id,
-        wallet.id
+        minSpendCode.id
       );
 
       toast.success(`${element.nom} réservé avec succès !`);
