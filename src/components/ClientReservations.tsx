@@ -13,25 +13,35 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 
 export default function ClientReservations() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [reservations, setReservations] = useState<ClientReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       loadReservations();
+    } else if (!authLoading && !user) {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const loadReservations = async () => {
     try {
       setLoading(true);
       const data = await ReservationService.getClientReservations();
       setReservations(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading reservations:', error);
-      toast.error('Erreur lors du chargement des réservations');
+      if (error.message?.includes('Authentication required')) {
+        toast.error('Veuillez vous connecter pour voir vos réservations');
+        navigate('/client-auth');
+      } else if (error.message?.includes('JWT expired')) {
+        toast.error('Session expirée, veuillez vous reconnecter');
+        navigate('/client-auth');
+      } else {
+        toast.error('Erreur lors du chargement des réservations');
+      }
     } finally {
       setLoading(false);
     }
@@ -98,7 +108,7 @@ export default function ClientReservations() {
     return reservation.min_spend_code.min_spend - reservation.min_spend_code.solde_restant;
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/80">
@@ -248,7 +258,7 @@ export default function ClientReservations() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/events/${reservation.event_id}`)}
+                              onClick={() => navigate(`/event/${reservation.event_id}`)}
                             >
                               <ExternalLink className="w-4 h-4 mr-1" />
                               Voir

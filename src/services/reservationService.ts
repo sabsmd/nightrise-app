@@ -77,7 +77,11 @@ export class ReservationService {
 
   static async getClientReservations(): Promise<ClientReservation[]> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw new Error('Authentication error: ' + authError.message);
+      }
       if (!user) {
         throw new Error('Authentication required');
       }
