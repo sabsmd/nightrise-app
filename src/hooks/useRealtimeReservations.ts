@@ -1,85 +1,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getReservationsByEvent, subscribeToReservations, type EnrichedReservation } from '@/lib/supabaseReservations';
 
-export interface ReservationData {
-  id: string;
-  created_at: string;
-  statut: string;
-  floor_element_id: string;
-  event_id: string;
-  user_id: string;
-  min_spend_code_id: string;
-  updated_at: string;
-  floor_element?: {
-    nom: string;
-    type: string;
-  } | null;
-  min_spend_code?: {
-    code: string;
-    nom_client: string;
-    prenom_client: string;
-    telephone_client: string;
-    min_spend: number;
-    solde_restant: number;
-  } | null;
-}
+export interface ReservationData extends EnrichedReservation {}
 
 export function useRealtimeReservations(event_id: string) {
   const [reservations, setReservations] = useState<ReservationData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchReservations = async () => {
-    if (!event_id) {
-      setReservations([]);
-      setLoading(false);
-      return;
-    }
-
     try {
-      // Fetch reservations
-      const { data: reservationsData, error: reservationsError } = await supabase
-        .from('client_reservations')
-        .select('*')
-        .eq('event_id', event_id)
-        .eq('statut', 'active')
-        .order('created_at', { ascending: false });
-
-      if (reservationsError) throw reservationsError;
-
-      if (!reservationsData || reservationsData.length === 0) {
-        setReservations([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get unique IDs for separate queries
-      const minSpendCodeIds = [...new Set(reservationsData.map(r => r.min_spend_code_id))];
-      const floorElementIds = [...new Set(reservationsData.map(r => r.floor_element_id))];
-
-      // Fetch min spend codes
-      const { data: minSpendCodes, error: minSpendError } = await supabase
-        .from('min_spend_codes')
-        .select('id, code, nom_client, prenom_client, telephone_client, min_spend, solde_restant')
-        .in('id', minSpendCodeIds);
-
-      if (minSpendError) throw minSpendError;
-
-      // Fetch floor elements
-      const { data: floorElements, error: floorError } = await supabase
-        .from('floor_elements')
-        .select('id, nom, type')
-        .in('id', floorElementIds);
-
-      if (floorError) throw floorError;
-
-      // Map the data together
-      const enrichedReservations = reservationsData.map(reservation => ({
-        ...reservation,
-        min_spend_code: minSpendCodes?.find(code => code.id === reservation.min_spend_code_id) || null,
-        floor_element: floorElements?.find(element => element.id === reservation.floor_element_id) || null
-      }));
-
-      setReservations(enrichedReservations as any);
+      const data = await getReservationsByEvent(event_id);
+      setReservations(data);
     } catch (error) {
       console.error('Error fetching reservations:', error);
       setReservations([]);
@@ -92,34 +24,10 @@ export function useRealtimeReservations(event_id: string) {
     fetchReservations();
 
     // Set up real-time subscription for this specific event
-    const channel = supabase
-      .channel(`reservations-event-${event_id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'client_reservations',
-          filter: `event_id=eq.${event_id}`
-        },
-        (payload) => {
-          console.log('Reservation change detected:', payload);
-          fetchReservations();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'min_spend_codes'
-        },
-        (payload) => {
-          console.log('Min spend code change detected:', payload);
-          fetchReservations();
-        }
-      )
-      .subscribe();
+    const channel = subscribeToReservations(event_id, (payload) => {
+      console.log('Reservation change detected:', payload);
+      fetchReservations();
+    });
 
     return () => {
       supabase.removeChannel(channel);
