@@ -36,29 +36,50 @@ export function useRealtimeReservations(event_id: string) {
     }
 
     try {
-      const { data, error } = await supabase
+      // Fetch reservations
+      const { data: reservationsData, error: reservationsError } = await supabase
         .from('client_reservations')
-        .select(`
-          *,
-          min_spend_code:min_spend_codes(
-            code,
-            nom_client,
-            prenom_client,
-            telephone_client,
-            min_spend,
-            solde_restant
-          ),
-          floor_element:floor_elements(
-            nom,
-            type
-          )
-        `)
+        .select('*')
         .eq('event_id', event_id)
         .eq('statut', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setReservations((data || []) as any);
+      if (reservationsError) throw reservationsError;
+
+      if (!reservationsData || reservationsData.length === 0) {
+        setReservations([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique IDs for separate queries
+      const minSpendCodeIds = [...new Set(reservationsData.map(r => r.min_spend_code_id))];
+      const floorElementIds = [...new Set(reservationsData.map(r => r.floor_element_id))];
+
+      // Fetch min spend codes
+      const { data: minSpendCodes, error: minSpendError } = await supabase
+        .from('min_spend_codes')
+        .select('id, code, nom_client, prenom_client, telephone_client, min_spend, solde_restant')
+        .in('id', minSpendCodeIds);
+
+      if (minSpendError) throw minSpendError;
+
+      // Fetch floor elements
+      const { data: floorElements, error: floorError } = await supabase
+        .from('floor_elements')
+        .select('id, nom, type')
+        .in('id', floorElementIds);
+
+      if (floorError) throw floorError;
+
+      // Map the data together
+      const enrichedReservations = reservationsData.map(reservation => ({
+        ...reservation,
+        min_spend_code: minSpendCodes?.find(code => code.id === reservation.min_spend_code_id) || null,
+        floor_element: floorElements?.find(element => element.id === reservation.floor_element_id) || null
+      }));
+
+      setReservations(enrichedReservations as any);
     } catch (error) {
       console.error('Error fetching reservations:', error);
       setReservations([]);

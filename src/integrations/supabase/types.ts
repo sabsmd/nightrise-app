@@ -61,6 +61,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_client_reservations_event_id"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_client_reservations_floor_element"
             columns: ["floor_element_id"]
             isOneToOne: false
@@ -68,7 +75,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_client_reservations_floor_element_id"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_client_reservations_min_spend_code"
+            columns: ["min_spend_code_id"]
+            isOneToOne: false
+            referencedRelation: "min_spend_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_client_reservations_min_spend_code_id"
             columns: ["min_spend_code_id"]
             isOneToOne: false
             referencedRelation: "min_spend_codes"
@@ -169,6 +190,13 @@ export type Database = {
             referencedRelation: "events"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_floor_elements_event_id"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
         ]
       }
       min_spend_codes: {
@@ -229,7 +257,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_min_spend_codes_event_id"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_min_spend_codes_floor_element"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_min_spend_codes_floor_element_id"
             columns: ["floor_element_id"]
             isOneToOne: false
             referencedRelation: "floor_elements"
