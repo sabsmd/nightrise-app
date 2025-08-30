@@ -111,7 +111,7 @@ export default function ClientFloorPlan({
       }
     }
 
-    // Open reservation dialog
+    // Open reservation dialog (will handle auth if needed)
     setSelectedElement(element);
     setShowReservationDialog(true);
   };

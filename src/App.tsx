@@ -15,7 +15,7 @@ import Client from "./pages/Client";
 import Auth from "./pages/Auth";
 import ClientAuth from "./pages/ClientAuth";
 import EventDetails from "./pages/EventDetails";
-import ClientReservations from "./components/ClientReservations";
+import ClientReservations from "./pages/ClientReservations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
