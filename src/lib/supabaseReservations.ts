@@ -65,7 +65,7 @@ export async function getReservationsByEvent(eventId: string): Promise<EnrichedR
   try {
     console.log('Fetching reservations for event:', eventId);
 
-    // Fetch reservations
+    // Fetch reservations with client-side aggregation to avoid foreign key issues
     const { data: reservationsData, error: reservationsError } = await supabase
       .from('client_reservations')
       .select('*')
@@ -85,43 +85,50 @@ export async function getReservationsByEvent(eventId: string): Promise<EnrichedR
     }
 
     // Get unique IDs for separate queries
-    const minSpendCodeIds = [...new Set(reservationsData.map(r => r.min_spend_code_id))];
-    const floorElementIds = [...new Set(reservationsData.map(r => r.floor_element_id))];
+    const minSpendCodeIds = [...new Set(reservationsData.map(r => r.min_spend_code_id).filter(Boolean))];
+    const floorElementIds = [...new Set(reservationsData.map(r => r.floor_element_id).filter(Boolean))];
 
     console.log('Fetching related data for:', { minSpendCodeIds, floorElementIds });
 
-    // Fetch min spend codes
-    const { data: minSpendCodes, error: minSpendError } = await supabase
-      .from('min_spend_codes')
-      .select('id, code, nom_client, prenom_client, telephone_client, min_spend, solde_restant')
-      .in('id', minSpendCodeIds);
+    // Fetch related data in parallel
+    const [minSpendResult, floorElementResult] = await Promise.all([
+      minSpendCodeIds.length > 0 
+        ? supabase
+            .from('min_spend_codes')
+            .select('id, code, nom_client, prenom_client, telephone_client, min_spend, solde_restant')
+            .in('id', minSpendCodeIds)
+        : Promise.resolve({ data: [], error: null }),
+      floorElementIds.length > 0
+        ? supabase
+            .from('floor_elements')
+            .select('id, nom, type')
+            .in('id', floorElementIds)
+        : Promise.resolve({ data: [], error: null })
+    ]);
 
-    if (minSpendError) {
-      console.error('Error fetching min spend codes:', minSpendError);
-      throw minSpendError;
+    if (minSpendResult.error) {
+      console.error('Error fetching min spend codes:', minSpendResult.error);
+      throw minSpendResult.error;
     }
 
-    // Fetch floor elements
-    const { data: floorElements, error: floorError } = await supabase
-      .from('floor_elements')
-      .select('id, nom, type')
-      .in('id', floorElementIds);
-
-    if (floorError) {
-      console.error('Error fetching floor elements:', floorError);
-      throw floorError;
+    if (floorElementResult.error) {
+      console.error('Error fetching floor elements:', floorElementResult.error);
+      throw floorElementResult.error;
     }
+
+    const minSpendCodes = minSpendResult.data || [];
+    const floorElements = floorElementResult.data || [];
 
     console.log('Retrieved related data:', {
-      minSpendCodes: minSpendCodes?.length || 0,
-      floorElements: floorElements?.length || 0
+      minSpendCodes: minSpendCodes.length,
+      floorElements: floorElements.length
     });
 
-    // Map the data together
+    // Map the data together with proper null handling
     const enrichedReservations = reservationsData.map(reservation => ({
       ...reservation,
-      min_spend_code: minSpendCodes?.find(code => code.id === reservation.min_spend_code_id) || null,
-      floor_element: floorElements?.find(element => element.id === reservation.floor_element_id) || null
+      min_spend_code: minSpendCodes.find(code => code.id === reservation.min_spend_code_id) || null,
+      floor_element: floorElements.find(element => element.id === reservation.floor_element_id) || null
     }));
 
     console.log('Returning enriched reservations:', enrichedReservations.length);

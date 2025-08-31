@@ -1,144 +1,18 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, CreditCard, User, Phone } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-
-interface ReservationData {
-  id: string;
-  created_at: string;
-  statut: string;
-  floor_element_id: string;
-  event_id: string;
-  user_id: string;
-  min_spend_code_id: string;
-  updated_at: string;
-  floor_element?: {
-    nom: string;
-    type: string;
-  } | null;
-  min_spend_code?: {
-    code: string;
-    nom_client: string;
-    prenom_client: string;
-    telephone_client: string;
-    min_spend: number;
-    solde_restant: number;
-  } | null;
-}
+import { useRealtimeReservations } from '@/hooks/useRealtimeReservations';
 
 interface Props {
   eventId: string;
 }
 
 export default function ProEventReservations({ eventId }: Props) {
-  const [reservations, setReservations] = useState<ReservationData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (eventId) {
-      loadReservations();
-      
-      // Subscribe to real-time updates
-      const channel = supabase
-        .channel('event-reservations-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'client_reservations',
-            filter: `event_id=eq.${eventId}`
-          },
-          () => {
-            console.log('Reservation change detected, reloading...');
-            loadReservations();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [eventId]);
-
-  const loadReservations = async () => {
-    try {
-      setLoading(true);
-      console.log('Loading reservations for event:', eventId);
-
-      // First, get reservations
-      const { data: reservationsData, error: reservationsError } = await supabase
-        .from('client_reservations')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('statut', 'active')
-        .order('created_at', { ascending: false });
-
-      if (reservationsError) {
-        console.error('Error loading reservations:', reservationsError);
-        throw reservationsError;
-      }
-
-      console.log('Raw reservations data:', reservationsData);
-
-      if (!reservationsData || reservationsData.length === 0) {
-        console.log('No reservations found');
-        setReservations([]);
-        return;
-      }
-
-      // Get unique IDs for separate queries
-      const minSpendCodeIds = [...new Set(reservationsData.map(r => r.min_spend_code_id))];
-      const floorElementIds = [...new Set(reservationsData.map(r => r.floor_element_id))];
-
-      // Fetch min spend codes
-      const { data: minSpendCodes, error: minSpendError } = await supabase
-        .from('min_spend_codes')
-        .select('id, code, nom_client, prenom_client, telephone_client, min_spend, solde_restant')
-        .in('id', minSpendCodeIds);
-
-      if (minSpendError) {
-        console.error('Error loading min spend codes:', minSpendError);
-        throw minSpendError;
-      }
-
-      // Fetch floor elements
-      const { data: floorElements, error: floorError } = await supabase
-        .from('floor_elements')
-        .select('id, nom, type')
-        .in('id', floorElementIds);
-
-      if (floorError) {
-        console.error('Error loading floor elements:', floorError);
-        throw floorError;
-      }
-
-      console.log('Min spend codes:', minSpendCodes);
-      console.log('Floor elements:', floorElements);
-
-      // Map the data together
-      const enrichedReservations = reservationsData.map(reservation => ({
-        ...reservation,
-        min_spend_code: minSpendCodes?.find(code => code.id === reservation.min_spend_code_id) || null,
-        floor_element: floorElements?.find(element => element.id === reservation.floor_element_id) || null
-      }));
-
-      console.log('Enriched reservations:', enrichedReservations);
-      setReservations(enrichedReservations);
-    } catch (error) {
-      console.error('Error loading reservations:', error);
-      toast.error('Erreur lors du chargement des réservations');
-      setReservations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { reservations, loading } = useRealtimeReservations(eventId);
 
   const formatDateTime = (dateString: string) =>
     new Date(dateString).toLocaleDateString('fr-FR', {
