@@ -136,21 +136,71 @@ export async function isTableReserved(eventId: string, floorElementId: string): 
  */
 export async function reserveTable(eventId: string, floorElementId: string, minSpendCodeId: string): Promise<ClientReservation> {
   try {
-    const { data, error } = await supabase
-      .from('client_reservations')
-      .insert([{
-        event_id: eventId,
-        floor_element_id: floorElementId,
-        min_spend_code_id: minSpendCodeId,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-      }])
+    // Get user info
+    const { data: user, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user.user) throw new Error('User not authenticated');
+
+    // Check if table is already reserved
+    const { data: existingReservation, error: checkError } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('floor_element_id', floorElementId)
+      .eq('statut', 'active')
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+    if (existingReservation) throw new Error('Cette table est déjà réservée');
+
+    // Check if user already has a reservation for this event
+    const { data: userReservation, error: userCheckError } = await supabase
+      .from('reservations')
+      .select('id')
+      .eq('event_id', eventId)
+      .eq('user_id', user.user.id)
+      .eq('statut', 'active')
+      .maybeSingle();
+
+    if (userCheckError) throw userCheckError;
+    if (userReservation) throw new Error('Vous avez déjà une réservation pour cet événement');
+
+    // Insert into both tables
+    const reservationData = {
+      event_id: eventId,
+      floor_element_id: floorElementId,
+      min_spend_code_id: minSpendCodeId,
+      user_id: user.user.id,
+    };
+
+    // Insert into public reservations table
+    const { data: publicReservation, error: publicError } = await supabase
+      .from('reservations')
+      .insert([reservationData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (publicError) throw publicError;
 
-    // Fetch related data
-    const reservation = await getReservationByIdWithRelations(data.id);
+    // Insert into client_reservations table  
+    const { data: clientReservation, error: clientError } = await supabase
+      .from('client_reservations')
+      .insert([reservationData])
+      .select()
+      .single();
+
+    if (clientError) throw clientError;
+
+    // Update min_spend_code with reservation_id
+    const { error: updateError } = await supabase
+      .from('min_spend_codes')
+      .update({ reservation_id: clientReservation.id })
+      .eq('id', minSpendCodeId);
+
+    if (updateError) throw updateError;
+
+    // Fetch related data for the client reservation
+    const reservation = await getReservationByIdWithRelations(clientReservation.id);
     return reservation;
   } catch (error) {
     console.error('❌ Error creating reservation:', error);

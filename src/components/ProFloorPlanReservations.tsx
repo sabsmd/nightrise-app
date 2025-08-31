@@ -53,35 +53,49 @@ export default function ProFloorPlanReservations({
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('client_reservations')
-        .select(`
-          *,
-          min_spend_code:min_spend_codes(
-            code,
-            min_spend,
-            solde_restant,
-            nom_client,
-            prenom_client,
-            telephone_client
-          ),
-          profiles(
-            nom,
-            email
-          )
-        `)
+      // First get reservation from reservations table
+      const { data: reservationData, error: reservationError } = await supabase
+        .from('reservations')
+        .select('*')
         .eq('floor_element_id', selectedElement.id)
         .eq('statut', 'active')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (reservationError) throw reservationError;
+      if (!reservationData) {
+        setReservation(null);
+        return;
       }
 
-      setReservation(data as any);
+      // Get min_spend_code details
+      const { data: minSpendCode, error: minSpendError } = await supabase
+        .from('min_spend_codes')
+        .select('code, min_spend, solde_restant, nom_client, prenom_client, telephone_client')
+        .eq('id', reservationData.min_spend_code_id)
+        .single();
+
+      if (minSpendError) throw minSpendError;
+
+      // Get user profile if exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('nom, email')
+        .eq('user_id', reservationData.user_id)
+        .maybeSingle();
+
+      // Don't throw on profile error as it might not exist
+      
+      const enrichedReservation = {
+        ...reservationData,
+        min_spend_code: minSpendCode,
+        profiles: profile || null
+      };
+
+      setReservation(enrichedReservation as any);
     } catch (error) {
       console.error('Error loading reservation:', error);
       toast.error('Erreur lors du chargement de la réservation');
+      setReservation(null);
     } finally {
       setLoading(false);
     }
@@ -92,12 +106,17 @@ export default function ProFloorPlanReservations({
 
     setCancelling(true);
     try {
-      const { error } = await supabase
-        .from('client_reservations')
-        .update({ statut: 'cancelled' })
-        .eq('id', reservation.id);
-
-      if (error) throw error;
+      // Cancel in both tables
+      await Promise.all([
+        supabase
+          .from('reservations')
+          .update({ statut: 'cancelled' })
+          .eq('id', reservation.id),
+        supabase
+          .from('client_reservations')
+          .update({ statut: 'cancelled' })
+          .eq('id', reservation.id)
+      ]);
 
       toast.success('Réservation annulée avec succès');
       onReservationCancelled();

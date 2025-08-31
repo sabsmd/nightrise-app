@@ -47,13 +47,13 @@ export default function ClientFloorPlan({
       
       // Subscribe to real-time updates
       const channel = supabase
-        .channel('client-reservations-changes')
+        .channel('reservations-changes')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
-            table: 'client_reservations',
+            table: 'reservations',
             filter: `event_id=eq.${eventId}`
           },
           () => {
@@ -73,7 +73,7 @@ export default function ClientFloorPlan({
     
     try {
       const { data, error } = await supabase
-        .from('client_reservations')
+        .from('reservations')
         .select('*')
         .eq('event_id', eventId)
         .eq('statut', 'active');
