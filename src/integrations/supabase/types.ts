@@ -95,6 +95,13 @@ export type Database = {
             referencedRelation: "min_spend_codes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_client_reservations_profiles"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       events: {
@@ -636,7 +643,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_reservations_profiles"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       secret_codes: {
         Row: {
