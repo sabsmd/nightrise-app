@@ -1,10 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Calendar, CreditCard, User, MapPin, Phone, Eye } from 'lucide-react';
+import { Calendar, CreditCard, User, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -55,6 +55,7 @@ export default function ProEventReservations({ eventId }: Props) {
             filter: `event_id=eq.${eventId}`
           },
           () => {
+            console.log('Reservation change detected, reloading...');
             loadReservations();
           }
         )
@@ -69,31 +70,71 @@ export default function ProEventReservations({ eventId }: Props) {
   const loadReservations = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      console.log('Loading reservations for event:', eventId);
+
+      // First, get reservations
+      const { data: reservationsData, error: reservationsError } = await supabase
         .from('client_reservations')
-        .select(`
-          *,
-          min_spend_code:min_spend_codes(
-            code,
-            nom_client,
-            prenom_client,
-            telephone_client,
-            min_spend,
-            solde_restant
-          ),
-          floor_element:floor_elements(
-            nom,
-            type
-          )
-        `)
+        .select('*')
         .eq('event_id', eventId)
+        .eq('statut', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setReservations((data || []) as any);
+      if (reservationsError) {
+        console.error('Error loading reservations:', reservationsError);
+        throw reservationsError;
+      }
+
+      console.log('Raw reservations data:', reservationsData);
+
+      if (!reservationsData || reservationsData.length === 0) {
+        console.log('No reservations found');
+        setReservations([]);
+        return;
+      }
+
+      // Get unique IDs for separate queries
+      const minSpendCodeIds = [...new Set(reservationsData.map(r => r.min_spend_code_id))];
+      const floorElementIds = [...new Set(reservationsData.map(r => r.floor_element_id))];
+
+      // Fetch min spend codes
+      const { data: minSpendCodes, error: minSpendError } = await supabase
+        .from('min_spend_codes')
+        .select('id, code, nom_client, prenom_client, telephone_client, min_spend, solde_restant')
+        .in('id', minSpendCodeIds);
+
+      if (minSpendError) {
+        console.error('Error loading min spend codes:', minSpendError);
+        throw minSpendError;
+      }
+
+      // Fetch floor elements
+      const { data: floorElements, error: floorError } = await supabase
+        .from('floor_elements')
+        .select('id, nom, type')
+        .in('id', floorElementIds);
+
+      if (floorError) {
+        console.error('Error loading floor elements:', floorError);
+        throw floorError;
+      }
+
+      console.log('Min spend codes:', minSpendCodes);
+      console.log('Floor elements:', floorElements);
+
+      // Map the data together
+      const enrichedReservations = reservationsData.map(reservation => ({
+        ...reservation,
+        min_spend_code: minSpendCodes?.find(code => code.id === reservation.min_spend_code_id) || null,
+        floor_element: floorElements?.find(element => element.id === reservation.floor_element_id) || null
+      }));
+
+      console.log('Enriched reservations:', enrichedReservations);
+      setReservations(enrichedReservations);
     } catch (error) {
       console.error('Error loading reservations:', error);
       toast.error('Erreur lors du chargement des réservations');
+      setReservations([]);
     } finally {
       setLoading(false);
     }
