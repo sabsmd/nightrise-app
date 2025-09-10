@@ -9,7 +9,7 @@ import { CreditCard, Check, AlertCircle, ShoppingCart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import ProductCatalog from './ProductCatalog';
+
 
 interface MinSpendCode {
   id: string;
@@ -20,7 +20,7 @@ interface MinSpendCode {
   solde_restant: number;
   statut: 'actif' | 'utilise' | 'expire' | 'reserved';
   event_id: string;
-  reservation_id?: string;
+  
 }
 
 interface ClientMinSpendTrackerProps {
@@ -47,7 +47,7 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated, onRese
     try {
       const { data, error } = await supabase
         .from('min_spend_codes')
-        .select('id, code, nom_client, prenom_client, min_spend, solde_restant, statut, event_id, reservation_id')
+        .select('id, code, nom_client, prenom_client, min_spend, solde_restant, statut, event_id')
         .eq('code', codeInput.toUpperCase())
         .eq('event_id', eventId)
         .in('statut', ['actif', 'reserved'])
@@ -67,12 +67,13 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated, onRese
       onCodeValidated?.(data as MinSpendCode);
       
       // Check if user has existing reservation for this code
-      if (user && data.reservation_id) {
+      if (user) {
         const { data: reservationData } = await supabase
-          .from('reservations')
+          .from('client_reservations')
           .select('*')
-          .eq('id', data.reservation_id)
+          .eq('min_spend_code_id', data.id)
           .eq('user_id', user.id)
+          .eq('statut', 'active')
           .single();
         
         if (reservationData) {
@@ -166,15 +167,7 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated, onRese
           )}
 
           <div className="flex gap-2">
-            {userReservation && (
-              <Button 
-                onClick={() => setShowCatalog(true)}
-                className="flex-1 bg-gradient-primary"
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                Catalogue
-              </Button>
-            )}
+            {/* Catalog button removed since ProductCatalog was deleted */}
             <Button 
               variant="outline" 
               onClick={resetCode}
@@ -184,15 +177,7 @@ export default function ClientMinSpendTracker({ eventId, onCodeValidated, onRese
             </Button>
           </div>
           
-          {showCatalog && userReservation && (
-            <ProductCatalog
-              open={showCatalog}
-              onOpenChange={setShowCatalog}
-              wallet={validatedCode}
-              eventId={eventId}
-              onWalletUpdated={() => {}}
-            />
-          )}
+          {/* Product catalog functionality removed */}
         </CardContent>
       </Card>
     );

@@ -1,26 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Bell, Check, X } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-interface Notification {
+export interface Notification {
   id: string;
-  type: 'new_reservation' | 'new_order' | 'order_update';
+  type: 'new_reservation' | 'status_update';
   message: string;
   data: any;
   timestamp: Date;
   read: boolean;
 }
 
-interface RealtimeNotificationsProps {
-  eventId?: string;
-}
-
-export default function RealtimeNotifications({ eventId }: RealtimeNotificationsProps) {
+export default function RealtimeNotifications({ eventId }: { eventId?: string }) {
   const { profile } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -28,9 +31,9 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
   useEffect(() => {
     if (!profile || profile.role !== 'admin' || !eventId) return;
 
-    // Subscribe to client reservations
-    const reservationsChannel = supabase
-      .channel('admin-client-reservations')
+    // Subscribe to new reservations
+    const newReservationsChannel = supabase
+      .channel('admin-new-reservations')
       .on(
         'postgres_changes',
         {
@@ -40,79 +43,26 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
           filter: `event_id=eq.${eventId}`
         },
         async (payload) => {
-          // Get element and code details
-          const { data: elementData } = await supabase
-            .from('floor_elements')
-            .select('nom, type')
-            .eq('id', payload.new.floor_element_id)
-            .single();
-
-          const { data: codeData } = await supabase
-            .from('min_spend_codes')
-            .select('nom_client, prenom_client, code')
-            .eq('id', payload.new.min_spend_code_id)
-            .single();
-
-          const notification: Notification = {
-            id: payload.new.id,
-            type: 'new_reservation',
-            message: `${codeData?.prenom_client} ${codeData?.nom_client} a réservé ${elementData?.nom} (${elementData?.type}) avec le code ${codeData?.code}`,
-            data: payload.new,
-            timestamp: new Date(),
-            read: false
-          };
-
-          setNotifications(prev => [notification, ...prev.slice(0, 19)]);
-          setUnreadCount(prev => prev + 1);
-          
-          toast.success(`Nouvelle réservation: ${elementData?.nom}`, {
-            description: `${codeData?.prenom_client} ${codeData?.nom_client} • Code ${codeData?.code}`,
-            action: {
-              label: "Voir",
-              onClick: () => {/* Navigate to reservations */}
-            }
-          });
-        }
-      )
-      .subscribe();
-
-    // Subscribe to orders
-    const ordersChannel = supabase
-      .channel('admin-orders')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `event_id=eq.${eventId}`
-        },
-        async (payload) => {
-          // Get order details
-          const { data: orderData } = await supabase
-            .from('orders')
+          // Get reservation details with proper joins
+          const { data: reservationData } = await supabase
+            .from('client_reservations')
             .select(`
               *,
-              order_items(
-                quantite,
-                products(nom)
-              )
+              floor_elements!client_reservations_floor_element_id_fkey(nom),
+              min_spend_codes!client_reservations_min_spend_code_id_fkey(nom_client, prenom_client)
             `)
             .eq('id', payload.new.id)
             .single();
 
-          const { data: tableData } = await supabase
-            .from('floor_elements')
-            .select('nom')
-            .eq('id', payload.new.table_id)
-            .single();
+          if (!reservationData) return;
 
-          const itemsCount = orderData?.order_items?.reduce((sum, item) => sum + item.quantite, 0) || 0;
+          const floorElement = reservationData.floor_elements as any;
+          const minSpendCode = reservationData.min_spend_codes as any;
 
           const notification: Notification = {
             id: payload.new.id,
-            type: 'new_order',
-            message: `Nouvelle commande - ${tableData?.nom} - ${itemsCount} article(s) - €${Number(payload.new.montant_total).toFixed(2)}`,
+            type: 'new_reservation',
+            message: `Nouvelle réservation - ${floorElement?.nom || 'Element'} - ${minSpendCode?.prenom_client || ''} ${minSpendCode?.nom_client || ''}`,
             data: payload.new,
             timestamp: new Date(),
             read: false
@@ -121,11 +71,11 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
           setNotifications(prev => [notification, ...prev.slice(0, 19)]);
           setUnreadCount(prev => prev + 1);
           
-          toast.success(`Nouvelle commande: ${tableData?.nom}`, {
-            description: `${itemsCount} article(s) - €${Number(payload.new.montant_total).toFixed(2)}`,
+          toast.success("Nouvelle réservation", {
+            description: notification.message,
             action: {
               label: "Voir",
-              onClick: () => {/* Navigate to orders */}
+              onClick: () => {/* Navigate to reservations */}
             }
           });
         }
@@ -135,28 +85,15 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'orders',
+          table: 'client_reservations',
           filter: `event_id=eq.${eventId}`
         },
-        async (payload) => {
+        (payload) => {
           if (payload.old.statut !== payload.new.statut) {
-            const { data: tableData } = await supabase
-              .from('floor_elements')
-              .select('nom')
-              .eq('id', payload.new.table_id)
-              .single();
-
-            const statusLabels = {
-              pending: 'en attente',
-              preparing: 'en préparation',
-              ready: 'prête',
-              served: 'servie'
-            };
-
             const notification: Notification = {
-              id: `${payload.new.id}-update`,
-              type: 'order_update',
-              message: `Commande ${tableData?.nom} ${statusLabels[payload.new.statut as keyof typeof statusLabels] || payload.new.statut}`,
+              id: `${payload.new.id}-status`,
+              type: 'status_update',
+              message: `Réservation ${payload.new.statut}`,
               data: payload.new,
               timestamp: new Date(),
               read: false
@@ -170,95 +107,97 @@ export default function RealtimeNotifications({ eventId }: RealtimeNotifications
       .subscribe();
 
     return () => {
-      supabase.removeChannel(reservationsChannel);
-      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(newReservationsChannel);
     };
   }, [profile, eventId]);
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const markAsRead = (notificationId: string) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId 
+          ? { ...notif, read: true }
+          : notif
+      )
+    );
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
     setUnreadCount(0);
   };
 
-  const clearNotifications = () => {
-    setNotifications([]);
-    setUnreadCount(0);
+  const formatTimeAgo = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'À l\'instant';
+    if (seconds < 3600) return `Il y a ${Math.floor(seconds / 60)} min`;
+    if (seconds < 86400) return `Il y a ${Math.floor(seconds / 3600)} h`;
+    return `Il y a ${Math.floor(seconds / 86400)} j`;
   };
 
-  if (!profile || profile.role !== 'admin') {
-    return null;
-  }
+  if (!profile || profile.role !== 'admin') return null;
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="relative">
-          <Bell className="w-4 h-4" />
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="relative">
+          <Bell className="w-5 h-5" />
           {unreadCount > 0 && (
-            <Badge variant="destructive" className="absolute -top-2 -right-2 px-1 py-0 text-xs min-w-5 h-5 flex items-center justify-center">
-              {unreadCount > 99 ? '99+' : unreadCount}
+            <Badge 
+              variant="destructive" 
+              className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="p-4 border-b">
-          <div className="flex justify-between items-center">
-            <h3 className="font-semibold">Notifications</h3>
-            <div className="flex gap-2">
-              {unreadCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-                  <Check className="w-4 h-4" />
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={clearNotifications}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel className="flex justify-between items-center">
+          <span>Notifications</span>
+          {unreadCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+              Tout lire
+            </Button>
+          )}
+        </DropdownMenuLabel>
+        
+        <DropdownMenuSeparator />
+        
+        {notifications.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground">
+            Aucune notification
           </div>
-        </div>
-        <div className="max-h-80 overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              Aucune notification
-            </div>
-          ) : (
-            notifications.map((notification) => (
-              <div
+        ) : (
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.map((notification) => (
+              <DropdownMenuItem
                 key={notification.id}
-                className={`p-3 border-b cursor-pointer hover:bg-muted/50 ${
-                  !notification.read ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                className={`p-3 cursor-pointer ${
+                  !notification.read ? 'bg-primary/5' : ''
                 }`}
                 onClick={() => markAsRead(notification.id)}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className={`text-sm ${!notification.read ? 'font-medium' : ''}`}>
+                <div className="flex flex-col space-y-1 w-full">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-medium line-clamp-2">
                       {notification.message}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {notification.timestamp.toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+                    {!notification.read && (
+                      <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 ml-2 mt-1" />
+                    )}
                   </div>
-                  {!notification.read && (
-                    <div className="w-2 h-2 bg-primary rounded-full ml-2 mt-1 flex-shrink-0" />
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {formatTimeAgo(notification.timestamp)}
+                  </p>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+              </DropdownMenuItem>
+            ))}
+          </div>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

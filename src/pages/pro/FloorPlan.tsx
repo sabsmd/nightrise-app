@@ -24,10 +24,7 @@ import { useFloorPlanStats } from "@/hooks/useFloorPlanStats";
 import { useRealtimeReservations } from "@/hooks/useRealtimeReservations";
 import { toast } from "sonner";
 import FloorPlanCanvas, { FloorElement } from "@/components/FloorPlanCanvas";
-import ElementPalette from "@/components/ElementPalette";
 import ElementConfigDialog from "@/components/ElementConfigDialog";
-import ProFloorPlanReservations from "@/components/ProFloorPlanReservations";
-import ProReservationsTable from "@/components/ProReservationsTable";
 
 export default function FloorPlan() {
   const { user } = useAuth();
@@ -35,7 +32,7 @@ export default function FloorPlan() {
   const [editMode, setEditMode] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [elements, setElements] = useState<FloorElement[]>([]);
-  const [tables, setTables] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const { reservations } = useRealtimeReservations(selectedEvent);
   const floorPlanStats = useFloorPlanStats(selectedEvent);
@@ -54,7 +51,6 @@ export default function FloorPlan() {
   useEffect(() => {
     if (selectedEvent) {
       loadElements();
-      loadTables();
     }
   }, [selectedEvent]);
 
@@ -95,20 +91,6 @@ export default function FloorPlan() {
     }
   };
 
-  const loadTables = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tables')
-        .select('*')
-        .eq('event_id', selectedEvent);
-
-      if (error) throw error;
-      setTables(data || []);
-    } catch (error) {
-      console.error('Erreur lors du chargement des tables:', error);
-      toast.error('Erreur lors du chargement des tables');
-    }
-  };
 
 
   const handleElementMove = async (id: string, x: number, y: number) => {
@@ -315,7 +297,7 @@ export default function FloorPlan() {
 
         {/* Sidebar Panel */}
         <div className="space-y-4">
-          <ElementPalette editMode={editMode} />
+          {/* Element Palette removed */}
 
           <Card className="bg-card/50 backdrop-blur-sm border-border/50">
             <CardHeader>
@@ -380,28 +362,15 @@ export default function FloorPlan() {
             </CardContent>
           </Card>
 
-          <ProReservationsTable reservations={reservations} />
+          {/* Reservations table is now in EventDetails */}
         </div>
       </div>
 
       <ElementConfigDialog
         element={configDialog.element}
-        open={configDialog.open && !showReservationDialog}
+        open={configDialog.open}
         onOpenChange={(open) => setConfigDialog({ ...configDialog, open })}
         onSave={handleElementSave}
-      />
-
-      <ProFloorPlanReservations
-        selectedElement={configDialog.element}
-        isOpen={showReservationDialog}
-        onClose={() => {
-          setShowReservationDialog(false);
-          setConfigDialog({ open: false, element: null });
-        }}
-        onReservationCancelled={() => {
-          setShowReservationDialog(false);
-          setConfigDialog({ open: false, element: null });
-        }}
       />
     </div>
   );
