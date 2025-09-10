@@ -112,6 +112,7 @@ export type Database = {
           description: string | null
           id: string
           image: string | null
+          image_file: string | null
           lieu: string
           titre: string
           type_evenement: string | null
@@ -124,6 +125,7 @@ export type Database = {
           description?: string | null
           id?: string
           image?: string | null
+          image_file?: string | null
           lieu: string
           titre: string
           type_evenement?: string | null
@@ -136,6 +138,7 @@ export type Database = {
           description?: string | null
           id?: string
           image?: string | null
+          image_file?: string | null
           lieu?: string
           titre?: string
           type_evenement?: string | null
@@ -213,6 +216,7 @@ export type Database = {
           min_spend: number
           nom_client: string
           prenom_client: string
+          reservation_id: string | null
           solde_restant: number
           statut: string
           telephone_client: string
@@ -228,6 +232,7 @@ export type Database = {
           min_spend?: number
           nom_client: string
           prenom_client: string
+          reservation_id?: string | null
           solde_restant?: number
           statut?: string
           telephone_client: string
@@ -243,6 +248,7 @@ export type Database = {
           min_spend?: number
           nom_client?: string
           prenom_client?: string
+          reservation_id?: string | null
           solde_restant?: number
           statut?: string
           telephone_client?: string
@@ -290,6 +296,195 @@ export type Database = {
             columns: ["floor_element_id"]
             isOneToOne: false
             referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "min_spend_codes_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      min_spend_transactions: {
+        Row: {
+          amount: number
+          code: string
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          notes: string | null
+          order_id: string | null
+          source: string
+          type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          code: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          order_id?: string | null
+          source?: string
+          type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          notes?: string | null
+          order_id?: string | null
+          source?: string
+          type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "min_spend_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "min_spend_wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      min_spend_wallets: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          expires_at: string | null
+          id: string
+          initial_credit: number
+          remaining_credit: number
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          initial_credit: number
+          remaining_credit: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          expires_at?: string | null
+          id?: string
+          initial_credit?: number
+          remaining_credit?: number
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          prix_unitaire: number
+          product_id: string
+          quantite: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          prix_unitaire: number
+          product_id: string
+          quantite: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          prix_unitaire?: number
+          product_id?: string
+          quantite?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          montant_total: number
+          serveur_id: string | null
+          statut: Database["public"]["Enums"]["order_status"]
+          table_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          montant_total?: number
+          serveur_id?: string | null
+          statut?: Database["public"]["Enums"]["order_status"]
+          table_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          montant_total?: number
+          serveur_id?: string | null
+          statut?: Database["public"]["Enums"]["order_status"]
+          table_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
             referencedColumns: ["id"]
           },
         ]
@@ -363,6 +558,60 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_codes: {
+        Row: {
+          code: string
+          created_at: string
+          event_id: string
+          expiration_date: string | null
+          floor_element_id: string | null
+          id: string
+          nom_client: string
+          prenom_client: string
+          statut: string
+          telephone_client: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          event_id: string
+          expiration_date?: string | null
+          floor_element_id?: string | null
+          id?: string
+          nom_client: string
+          prenom_client: string
+          statut?: string
+          telephone_client: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          event_id?: string
+          expiration_date?: string | null
+          floor_element_id?: string | null
+          id?: string
+          nom_client?: string
+          prenom_client?: string
+          statut?: string
+          telephone_client?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_codes_floor_element_id_fkey"
+            columns: ["floor_element_id"]
+            isOneToOne: false
+            referencedRelation: "floor_elements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservations: {
         Row: {
           created_at: string
@@ -404,11 +653,108 @@ export type Database = {
           },
         ]
       }
+      secret_codes: {
+        Row: {
+          code_unique: string
+          created_at: string
+          id: string
+          serveur_id: string
+          validite: boolean
+        }
+        Insert: {
+          code_unique: string
+          created_at?: string
+          id?: string
+          serveur_id: string
+          validite?: boolean
+        }
+        Update: {
+          code_unique?: string
+          created_at?: string
+          id?: string
+          serveur_id?: string
+          validite?: boolean
+        }
+        Relationships: []
+      }
+      tables: {
+        Row: {
+          capacite: number | null
+          created_at: string
+          etat: Database["public"]["Enums"]["table_state"]
+          event_id: string
+          floor_element_id: string | null
+          id: string
+          min_spend: number
+          nom: string
+          position_x: number
+          position_y: number
+          updated_at: string
+        }
+        Insert: {
+          capacite?: number | null
+          created_at?: string
+          etat?: Database["public"]["Enums"]["table_state"]
+          event_id: string
+          floor_element_id?: string | null
+          id?: string
+          min_spend?: number
+          nom: string
+          position_x?: number
+          position_y?: number
+          updated_at?: string
+        }
+        Update: {
+          capacite?: number | null
+          created_at?: string
+          etat?: Database["public"]["Enums"]["table_state"]
+          event_id?: string
+          floor_element_id?: string | null
+          id?: string
+          min_spend?: number
+          nom?: string
+          position_x?: number
+          position_y?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tables_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      credit_wallet: {
+        Args: {
+          p_amount: number
+          p_code: string
+          p_idempotency_key?: string
+          p_notes?: string
+          p_order_id?: string
+          p_source?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
+      debit_wallet: {
+        Args: {
+          p_amount: number
+          p_code: string
+          p_idempotency_key?: string
+          p_notes?: string
+          p_order_id?: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]

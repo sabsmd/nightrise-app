@@ -195,9 +195,11 @@ export default function ProEventDetails() {
         statut: 'non_utilise'
       };
 
-      // Note: reservation_codes table was removed - this functionality is now handled by min_spend_codes
-      toast.error('Cette fonctionnalité a été supprimée');
-      return;
+      const { error } = await supabase
+        .from('reservation_codes')
+        .insert([codeData]);
+
+      if (error) throw error;
 
       toast.success(`Code de réservation créé : ${code}`);
       setIsDialogOpen(false);

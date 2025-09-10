@@ -1,9 +1,10 @@
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Bell, User, LogOut, Menu, Home, Calendar, MapPin, Package, Settings, Users, BarChart3 } from "lucide-react";
+import { Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
-import { Card } from "@/components/ui/card";
 import RealtimeNotifications from "@/components/RealtimeNotifications";
 import { 
   DropdownMenu,
@@ -15,18 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ProLayout() {
-  const location = useLocation();
   const { profile, signOut } = useAuth();
-
-  const navigationItems = [
-    { title: "Tableau de bord", url: "/pro", icon: Home },
-    { title: "Événements", url: "/pro/events", icon: Calendar },
-    { title: "Plan de salle", url: "/pro/floor-plan", icon: MapPin },
-    { title: "Codes Min Spend", url: "/pro/min-spend-codes", icon: Package },
-    { title: "Produits", url: "/pro/products", icon: Package },
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
+  const location = useLocation();
   
   const eventId = location.pathname.includes('/events/') 
     ? location.pathname.split('/events/')[1]?.split('/')[0]
@@ -34,39 +25,19 @@ export function ProLayout() {
 
   return (
     <ProtectedRoute requireRole="admin">
+      <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-border bg-card/50 backdrop-blur-sm">
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Pool Party Pro</h2>
-              <p className="text-sm text-muted-foreground">Interface Professionnelle</p>
-            </div>
-            
-            <nav className="flex-1 p-4 space-y-2">
-              {navigationItems.map((item) => (
-                <Link
-                  key={item.url}
-                  to={item.url}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                    isActive(item.url)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                  }`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{item.title}</span>
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
+        <AppSidebar />
         
         <div className="flex flex-col flex-1">
           {/* Header */}
           <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6">
             <div className="flex items-center gap-4">
-              <h1 className="text-xl font-semibold">Interface Professionnelle</h1>
+              <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+              <div className="hidden md:block">
+                <h1 className="text-lg font-semibold text-foreground">Interface Professionnelle</h1>
+                <p className="text-sm text-muted-foreground">Gestion complète de vos événements</p>
+              </div>
             </div>
             
             <div className="flex items-center gap-3">
@@ -112,6 +83,7 @@ export function ProLayout() {
           </main>
         </div>
       </div>
+    </SidebarProvider>
     </ProtectedRoute>
   );
 }

@@ -220,7 +220,13 @@ export async function reserveTable(eventId: string, floorElementId: string, minS
 
     if (clientError) throw clientError;
 
-    // Note: No need to update min_spend_code with reservation_id since that column was removed
+    // Update min_spend_code with reservation_id
+    const { error: updateError } = await supabase
+      .from('min_spend_codes')
+      .update({ reservation_id: clientReservation.id })
+      .eq('id', minSpendCodeId);
+
+    if (updateError) throw updateError;
 
     // Fetch related data for the client reservation
     const reservation = await getReservationByIdWithRelations(clientReservation.id);
